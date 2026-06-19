@@ -1,22 +1,77 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'features/splash/presentation/splash_screen.dart';
 import 'features/dashboard/presentation/dashboard_screen.dart';
 import 'features/expenses/presentation/expense_screen.dart';
 import 'features/analytics/presentation/analytics_screen.dart';
-import 'features/setup/presentation/setup_screen.dart'; 
+import 'features/setup/presentation/setup_screen.dart';
 
 void main() {
   runApp(const HostelExpenseApp());
 }
 
+// Custom widget to safely animate tabs without duplicating GlobalKeys
+class FadeIndexedStack extends StatefulWidget {
+  final int index;
+  final List<Widget> children;
+
+  const FadeIndexedStack({super.key, required this.index, required this.children});
+
+  @override
+  State<FadeIndexedStack> createState() => _FadeIndexedStackState();
+}
+
+class _FadeIndexedStackState extends State<FadeIndexedStack> with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(vsync: this, duration: const Duration(milliseconds: 300));
+    _controller.forward();
+  }
+
+  @override
+  void didUpdateWidget(FadeIndexedStack oldWidget) {
+    if (widget.index != oldWidget.index) {
+      _controller.forward(from: 0.0);
+    }
+    super.didUpdateWidget(oldWidget);
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return FadeTransition(
+      opacity: _controller,
+      child: SlideTransition(
+        position: Tween<Offset>(begin: const Offset(0, 0.02), end: Offset.zero).animate(_controller),
+        child: IndexedStack(
+          index: widget.index,
+          children: widget.children,
+        ),
+      ),
+    );
+  }
+}
+
 class ScaffoldWithNavBar extends StatelessWidget {
-  const ScaffoldWithNavBar({required this.navigationShell, super.key});
+  const ScaffoldWithNavBar({required this.navigationShell, required this.children, super.key});
   final StatefulNavigationShell navigationShell;
+  final List<Widget> children;
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: navigationShell,
+      body: FadeIndexedStack(
+        index: navigationShell.currentIndex,
+        children: children,
+      ),
       bottomNavigationBar: NavigationBar(
         selectedIndex: navigationShell.currentIndex,
         onDestinationSelected: (index) => navigationShell.goBranch(
@@ -37,11 +92,16 @@ class ScaffoldWithNavBar extends StatelessWidget {
 }
 
 final GoRouter _router = GoRouter(
-  initialLocation: '/dashboard',
+  initialLocation: '/splash',
   routes: [
-    StatefulShellRoute.indexedStack(
-      builder: (context, state, navigationShell) {
-        return ScaffoldWithNavBar(navigationShell: navigationShell);
+    GoRoute(
+      path: '/splash',
+      builder: (context, state) => const SplashScreen(),
+    ),
+    StatefulShellRoute(
+      builder: (context, state, navigationShell) => navigationShell,
+      navigatorContainerBuilder: (context, navigationShell, children) {
+        return ScaffoldWithNavBar(navigationShell: navigationShell, children: children);
       },
       branches: [
         StatefulShellBranch(routes: [GoRoute(path: '/dashboard', builder: (context, state) => const DashboardScreen())]),

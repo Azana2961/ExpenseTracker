@@ -38,6 +38,7 @@ dependencies:
   go_router: ^17.3.0
   intl: ^0.20.2
   fl_chart: ^1.2.0
+  shared_preferences: ^2.2.3
 
 dev_dependencies:
   flutter_test:
