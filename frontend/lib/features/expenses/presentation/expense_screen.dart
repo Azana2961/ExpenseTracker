@@ -19,8 +19,8 @@ class _ExpenseScreenState extends State<ExpenseScreen> {
   
   String _selectedCategory = 'Food';
   
-  // Local placeholder (will be synced with SetupScreen via state management later)
-  final List<String> _categories = ['Food', 'Transport', 'Laundry', 'Supplies', 'Bills', 'Other'];
+  // Local placeholder (Ensure 'Loan' is safely in this list!)
+  final List<String> _categories = ['Food', 'Transport', 'Laundry', 'Supplies', 'Bills', 'Loan', 'Other'];
 
   final List<Map<String, dynamic>> _quickAdds = [
     {'label': '🍳 Breakfast', 'amount': '240', 'category': 'Food', 'color': Colors.orange},

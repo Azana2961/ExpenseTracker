@@ -17,11 +17,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
   DateTime _focusedDay = DateTime.now();
   DateTime? _selectedDay;
 
-  // Mock Database of expenses
+  // Mock Database of expenses (Now supports 'Loan' and 'isCleared')
   final List<Map<String, dynamic>> _allTransactions = [
-    {'date': DateTime.now(), 'label': '🍔 Lunch', 'amount': '450', 'category': 'Food', 'icon': Icons.fastfood},
-    {'date': DateTime.now(), 'label': '🛺 Rickshaw to Uni', 'amount': '150', 'category': 'Transport', 'icon': Icons.directions_car},
-    {'date': DateTime.now().subtract(const Duration(days: 1)), 'label': '👕 Laundry', 'amount': '300', 'category': 'Laundry', 'icon': Icons.local_laundry_service},
+    {'id': '1', 'date': DateTime.now(), 'label': '🍔 Lunch', 'amount': '450', 'category': 'Food', 'icon': Icons.fastfood, 'isCleared': true},
+    {'id': '2', 'date': DateTime.now(), 'label': '🍕 Pizza (Ali)', 'amount': '800', 'category': 'Loan', 'icon': Icons.handshake_outlined, 'isCleared': false}, // PENDING LOAN
+    {'id': '3', 'date': DateTime.now().subtract(const Duration(days: 1)), 'label': '🛺 Rickshaw to Uni', 'amount': '150', 'category': 'Transport', 'icon': Icons.directions_car, 'isCleared': true},
+    {'id': '4', 'date': DateTime.now().subtract(const Duration(days: 2)), 'label': '👕 Laundry', 'amount': '300', 'category': 'Laundry', 'icon': Icons.local_laundry_service, 'isCleared': true},
+    {'id': '5', 'date': DateTime.now().subtract(const Duration(days: 2)), 'label': '☕ Coffee (Sara)', 'amount': '400', 'category': 'Loan', 'icon': Icons.handshake_outlined, 'isCleared': true}, // CLEARED LOAN
   ];
 
   @override
@@ -35,117 +37,162 @@ class _DashboardScreenState extends State<DashboardScreen> {
     return _allTransactions.where((tx) => isSameDay(tx['date'] as DateTime, day)).toList();
   }
 
+  // Check if a specific day has any un-cleared loans
+  bool _hasPendingLoan(DateTime day) {
+    return _allTransactions.any((tx) => isSameDay(tx['date'] as DateTime, day) && tx['category'] == 'Loan' && tx['isCleared'] == false);
+  }
+
   // --- POPUP: SHOW TRANSACTIONS FOR SPECIFIC DAY ---
   void _showTransactionsPopup(DateTime day) {
-    final dailyTransactions = _getTransactionsForDay(day);
-
     showModalBottomSheet(
       context: context,
-      isScrollControlled: true, // Allows the sheet to size dynamically
+      isScrollControlled: true, 
       backgroundColor: Colors.transparent,
       builder: (context) {
-        return Container(
-          decoration: const BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-          ),
-          padding: const EdgeInsets.fromLTRB(20, 20, 20, 32),
-          child: SafeArea(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                // Header of the Popup
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        return StatefulBuilder(
+          builder: (context, setModalState) {
+            final dailyTransactions = _getTransactionsForDay(day);
+
+            return Container(
+              decoration: const BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+              ),
+              padding: const EdgeInsets.fromLTRB(20, 20, 20, 32),
+              child: SafeArea(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
                   children: [
-                    Text(
-                      isSameDay(day, DateTime.now()) 
-                          ? "Today's Activity" 
-                          : DateFormat('MMM d, yyyy').format(day),
-                      style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.black87),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          isSameDay(day, DateTime.now()) 
+                              ? "Today's Activity" 
+                              : DateFormat('MMM d, yyyy').format(day),
+                          style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.black87),
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.close, color: Colors.grey),
+                          onPressed: () => Navigator.pop(context),
+                        )
+                      ],
                     ),
-                    IconButton(
-                      icon: const Icon(Icons.close, color: Colors.grey),
-                      onPressed: () => Navigator.pop(context),
-                    )
+                    const SizedBox(height: 16),
+                    
+                    if (dailyTransactions.isEmpty)
+                      const Padding(
+                        padding: EdgeInsets.symmetric(vertical: 20),
+                        child: PremiumEmptyState(
+                          title: 'No Expenses',
+                          subtitle: 'You have not logged any spending for this day.',
+                          icon: Icons.receipt_long_outlined,
+                        ),
+                      )
+                    else
+                      ConstrainedBox(
+                        constraints: BoxConstraints(maxHeight: MediaQuery.of(context).size.height * 0.45),
+                        child: ListView.builder(
+                          shrinkWrap: true,
+                          itemCount: dailyTransactions.length,
+                          itemBuilder: (context, index) {
+                            final tx = dailyTransactions[index];
+                            final isLoan = tx['category'] == 'Loan';
+                            final isCleared = tx['isCleared'] as bool? ?? true;
+
+                            // UI styling based on Loan state
+                            Color amountColor = Colors.redAccent;
+                            String amountPrefix = '- ';
+                            
+                            if (isLoan) {
+                              if (isCleared) {
+                                amountColor = Colors.green; // Got money back
+                                amountPrefix = '+ ';
+                              } else {
+                                amountColor = Colors.orange.shade700; // Pending
+                                amountPrefix = '⏳ ';
+                              }
+                            }
+
+                            return Padding(
+                              padding: const EdgeInsets.only(bottom: 12),
+                              child: Container(
+                                decoration: BoxDecoration(
+                                  color: isLoan && !isCleared ? Colors.orange.shade50 : Colors.white,
+                                  borderRadius: BorderRadius.circular(16),
+                                  border: Border.all(color: isLoan && !isCleared ? Colors.orange.shade200 : Colors.grey.shade100),
+                                  boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.03), blurRadius: 10, offset: const Offset(0, 4))]
+                                ),
+                                child: ListTile(
+                                  contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                                  onTap: isLoan ? () {
+                                    // Logic to toggle the Loan Status
+                                    setState(() {
+                                      final txIndex = _allTransactions.indexWhere((t) => t['id'] == tx['id']);
+                                      if (txIndex != -1) {
+                                        _allTransactions[txIndex]['isCleared'] = !isCleared;
+                                      }
+                                    });
+                                    setModalState(() {}); // Refresh Popup UI
+                                  } : null,
+                                  leading: CircleAvatar(
+                                    backgroundColor: isLoan && !isCleared ? Colors.orange.withValues(alpha: 0.2) : primaryTeal.withValues(alpha: 0.1),
+                                    child: Icon(tx['icon'] as IconData, color: isLoan && !isCleared ? Colors.orange.shade700 : primaryTeal),
+                                  ),
+                                  title: Text(
+                                    tx['label'] as String, 
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      decoration: isLoan && isCleared ? TextDecoration.lineThrough : null, // Strike through if cleared
+                                      color: isLoan && isCleared ? Colors.grey : Colors.black87,
+                                    )
+                                  ),
+                                  subtitle: Text(
+                                    isLoan 
+                                      ? (isCleared ? 'Loan • Cleared' : 'Loan • Tap to mark as paid') 
+                                      : tx['category'] as String, 
+                                    style: TextStyle(
+                                      color: isLoan && !isCleared ? Colors.orange.shade800 : Colors.grey.shade600, 
+                                      fontSize: 12,
+                                      fontWeight: isLoan && !isCleared ? FontWeight.bold : FontWeight.normal,
+                                    )
+                                  ),
+                                  trailing: Text(
+                                    '$amountPrefix Rs ${tx['amount']}', 
+                                    style: TextStyle(fontWeight: FontWeight.bold, color: amountColor, fontSize: 16)
+                                  ),
+                                ),
+                              ),
+                            );
+                          },
+                        ),
+                      ),
+                    
+                    const SizedBox(height: 24),
+                    
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton.icon(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: primaryTeal,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 16),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          elevation: 0,
+                        ),
+                        onPressed: () {
+                          Navigator.pop(context); 
+                          context.go('/expense', extra: day); 
+                        },
+                        icon: const Icon(Icons.add),
+                        label: const Text('Add Expense for this Day', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                      ),
+                    ),
                   ],
                 ),
-                const SizedBox(height: 16),
-                
-                // Content of the Popup (List or Empty State)
-                if (dailyTransactions.isEmpty)
-                  const Padding(
-                    padding: EdgeInsets.symmetric(vertical: 20),
-                    child: PremiumEmptyState(
-                      title: 'No Expenses',
-                      subtitle: 'You have not logged any spending for this day.',
-                      icon: Icons.receipt_long_outlined,
-                    ),
-                  )
-                else
-                  ConstrainedBox(
-                    constraints: BoxConstraints(
-                      maxHeight: MediaQuery.of(context).size.height * 0.45, // Limits list height
-                    ),
-                    child: ListView.builder(
-                      shrinkWrap: true,
-                      itemCount: dailyTransactions.length,
-                      itemBuilder: (context, index) {
-                        final tx = dailyTransactions[index];
-                        return Padding(
-                          padding: const EdgeInsets.only(bottom: 12),
-                          child: Container(
-                            decoration: BoxDecoration(
-                              color: Colors.white,
-                              borderRadius: BorderRadius.circular(16),
-                              border: Border.all(color: Colors.grey.shade100),
-                              boxShadow: [
-                                BoxShadow(color: Colors.black.withValues(alpha: 0.03), blurRadius: 10, offset: const Offset(0, 4))
-                              ]
-                            ),
-                            child: ListTile(
-                              contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                              leading: CircleAvatar(
-                                backgroundColor: primaryTeal.withValues(alpha: 0.1),
-                                child: Icon(tx['icon'] as IconData, color: primaryTeal),
-                              ),
-                              title: Text(tx['label'] as String, style: const TextStyle(fontWeight: FontWeight.bold)),
-                              subtitle: Text(tx['category'] as String, style: TextStyle(color: Colors.grey.shade600, fontSize: 12)),
-                              trailing: Text(
-                                '- Rs ${tx['amount']}', 
-                                style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.redAccent, fontSize: 16)
-                              ),
-                            ),
-                          ),
-                        );
-                      },
-                    ),
-                  ),
-                
-                const SizedBox(height: 24),
-                
-                // Add Expense Button inside the Popup
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton.icon(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: primaryTeal,
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(vertical: 16),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                      elevation: 0,
-                    ),
-                    onPressed: () {
-                      Navigator.pop(context); // Close the popup first
-                      context.go('/expense', extra: day); // Then navigate to Add Screen
-                    },
-                    icon: const Icon(Icons.add),
-                    label: const Text('Add Expense for this Day', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-                  ),
-                ),
-              ],
-            ),
-          ),
+              ),
+            );
+          }
         );
       }
     );
@@ -153,18 +200,15 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // Mock Data for the UI
     const double currentSpent = 12500.0;
     const double monthlyBudget = 15000.0;
     const double idealDailySpend = 500.0; 
     
-    // Dynamic Date Math
     final DateTime today = DateTime.now();
     final int daysInMonth = DateUtils.getDaysInMonth(today.year, today.month);
     final int currentDay = today.day;
     final int remainingDays = daysInMonth - currentDay;
 
-    // Averages Calculations
     final double budgetPercentage = (currentSpent / monthlyBudget).clamp(0.0, 1.0);
     final double dailyAverageSpent = currentSpent / currentDay;
     final double remainingBudget = monthlyBudget - currentSpent;
@@ -182,14 +226,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // --- TOP SECTION: TODAY SPENT ---
             Container(
               width: double.infinity,
               padding: const EdgeInsets.all(24),
-              decoration: BoxDecoration(
-                color: primaryTeal,
-                borderRadius: BorderRadius.circular(20),
-              ),
+              decoration: BoxDecoration(color: primaryTeal, borderRadius: BorderRadius.circular(20)),
               child: const Column(
                 children: [
                   Text('Today Spent', style: TextStyle(color: Colors.white70, fontSize: 16)),
@@ -200,7 +240,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
             ),
             const SizedBox(height: 20),
 
-            // --- THE 3 AVERAGES BOXES ---
             Row(
               children: [
                 Expanded(child: _buildInfoBox('Avg Spent', 'Rs ${dailyAverageSpent.toStringAsFixed(0)}', primaryTeal.withValues(alpha: 0.1), primaryTeal)),
@@ -212,7 +251,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
             ),
             const SizedBox(height: 28),
 
-            // --- MIDDLE SECTION: PACING ---
             const Text('Monthly Budget', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.black87)),
             const SizedBox(height: 16),
             Row(
@@ -248,7 +286,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
             Text('${(budgetPercentage * 100).toStringAsFixed(1)}% of your budget used', style: TextStyle(color: budgetPercentage > 0.9 ? Colors.redAccent : Colors.grey.shade700, fontWeight: FontWeight.w500)),
             const SizedBox(height: 28),
 
-            // --- CALENDAR WIDGET ---
             const Text('Expense Calendar', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.black87)),
             const SizedBox(height: 12),
             Container(
@@ -263,6 +300,25 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 focusedDay: _focusedDay,
                 selectedDayPredicate: (day) => isSameDay(_selectedDay, day),
                 headerStyle: const HeaderStyle(formatButtonVisible: false, titleCentered: true),
+                
+                // --- CUSTOM OVERLAPPING RING FOR LOANS ---
+                calendarBuilders: CalendarBuilders(
+                  markerBuilder: (context, day, events) {
+                    if (_hasPendingLoan(day)) {
+                      return Center(
+                        child: Container(
+                          width: 42, // Large enough to encircle the date
+                          height: 42,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            border: Border.all(color: Colors.orange.shade700, width: 2.5),
+                          ),
+                        ),
+                      );
+                    }
+                    return null;
+                  },
+                ),
                 calendarStyle: CalendarStyle(
                   todayDecoration: BoxDecoration(color: primaryTeal.withValues(alpha: 0.3), shape: BoxShape.circle),
                   selectedDecoration: BoxDecoration(color: primaryTeal, shape: BoxShape.circle),
@@ -272,7 +328,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     _selectedDay = selectedDay;
                     _focusedDay = focusedDay;
                   });
-                  // Trigger the Popup when a day is clicked!
                   _showTransactionsPopup(selectedDay);
                 },
               ),

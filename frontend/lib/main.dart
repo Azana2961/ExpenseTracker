@@ -74,10 +74,18 @@ class ScaffoldWithNavBar extends StatelessWidget {
       ),
       bottomNavigationBar: NavigationBar(
         selectedIndex: navigationShell.currentIndex,
-        onDestinationSelected: (index) => navigationShell.goBranch(
-          index,
-          initialLocation: index == navigationShell.currentIndex,
-        ),
+        onDestinationSelected: (index) {
+          if (index == 1) {
+            // --- FIX: ALWAYS FORCE "TODAY" WHEN TAPPING THE BOTTOM NAV ADD BUTTON ---
+            context.go('/expense', extra: DateTime.now());
+          } else {
+            // Default behavior for other tabs
+            navigationShell.goBranch(
+              index,
+              initialLocation: index == navigationShell.currentIndex,
+            );
+          }
+        },
         backgroundColor: Colors.white,
         indicatorColor: const Color(0xFF2EC4B6).withValues(alpha: 0.2),
         destinations: const [

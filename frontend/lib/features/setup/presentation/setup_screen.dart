@@ -12,11 +12,11 @@ class SetupScreen extends StatefulWidget {
 class _SetupScreenState extends State<SetupScreen> {
   final Color primaryTeal = const Color(0xFF2EC4B6);
   
-  // Controllers for Configuration
   final TextEditingController _budgetController = TextEditingController(text: '15000');
   final TextEditingController _idealDailyController = TextEditingController(text: '500');
 
-  List<String> _categories = ['Food', 'Transport', 'Laundry', 'Supplies', 'Bills', 'Other'];
+  // 'Loan' is now a built-in category
+  List<String> _categories = ['Food', 'Transport', 'Laundry', 'Supplies', 'Bills', 'Loan', 'Other'];
   List<Map<String, dynamic>> _quickAdds = [
     {'label': '🍳 Breakfast', 'amount': '240', 'category': 'Food', 'colorValue': Colors.orange.value},
     {'label': '☕ Tea & Snack', 'amount': '80', 'category': 'Food', 'colorValue': Colors.brown.value},
@@ -34,16 +34,15 @@ class _SetupScreenState extends State<SetupScreen> {
     final prefs = await SharedPreferences.getInstance();
     setState(() {
       final savedCats = prefs.getStringList('categories');
-      if (savedCats != null) _categories = savedCats;
-
-      final savedQuick = prefs.getString('quickAdds');
-      if (savedQuick != null) {
-        _quickAdds = List<Map<String, dynamic>>.from(json.decode(savedQuick));
+      if (savedCats != null) {
+        _categories = savedCats;
+        if (!_categories.contains('Loan')) _categories.add('Loan'); // Safety fallback
       }
 
+      final savedQuick = prefs.getString('quickAdds');
+      if (savedQuick != null) _quickAdds = List<Map<String, dynamic>>.from(json.decode(savedQuick));
       final savedBudget = prefs.getString('monthlyBudget');
       if (savedBudget != null) _budgetController.text = savedBudget;
-
       final savedIdeal = prefs.getString('idealDaily');
       if (savedIdeal != null) _idealDailyController.text = savedIdeal;
     });
@@ -93,18 +92,23 @@ class _SetupScreenState extends State<SetupScreen> {
                       shrinkWrap: true,
                       itemCount: _categories.length,
                       itemBuilder: (context, index) {
+                        final catName = _categories[index];
+                        final isBuiltIn = catName == 'Loan'; // Protect the Loan category
+
                         return ListTile(
-                          title: Text(_categories[index]),
-                          trailing: IconButton(
-                            icon: const Icon(Icons.delete_outline, color: Colors.red),
-                            onPressed: () {
-                              if (_categories.length > 1) {
-                                setState(() => _categories.removeAt(index));
-                                _saveData();
-                                setDialogState(() {});
-                              }
-                            },
-                          ),
+                          title: Text(catName, style: TextStyle(fontWeight: isBuiltIn ? FontWeight.bold : FontWeight.normal)),
+                          trailing: isBuiltIn
+                              ? const Padding(padding: EdgeInsets.all(8.0), child: Icon(Icons.lock_outline, color: Colors.grey, size: 20))
+                              : IconButton(
+                                  icon: const Icon(Icons.delete_outline, color: Colors.red),
+                                  onPressed: () {
+                                    if (_categories.length > 1) {
+                                      setState(() => _categories.removeAt(index));
+                                      _saveData();
+                                      setDialogState(() {});
+                                    }
+                                  },
+                                ),
                         );
                       },
                     ),
@@ -112,9 +116,7 @@ class _SetupScreenState extends State<SetupScreen> {
                 ],
               ),
             ),
-            actions: [
-              TextButton(onPressed: () => Navigator.pop(context), child: const Text('Done')),
-            ],
+            actions: [TextButton(onPressed: () => Navigator.pop(context), child: const Text('Done'))],
           );
         }
       ),
@@ -232,7 +234,6 @@ class _SetupScreenState extends State<SetupScreen> {
                     ),
                   ),
                   const Divider(),
-                  // Merged Create Shortcut Button inside the Dialog
                   ListTile(
                     onTap: () {
                       Navigator.pop(context);
