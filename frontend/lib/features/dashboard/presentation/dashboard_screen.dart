@@ -30,13 +30,20 @@ class _DashboardScreenState extends State<DashboardScreen> {
   // Helper to map categories to specific icons
   IconData _getCategoryIcon(String category) {
     switch (category) {
-      case 'Food': return Icons.fastfood;
-      case 'Transport': return Icons.directions_car;
-      case 'Laundry': return Icons.local_laundry_service;
-      case 'Bills': return Icons.receipt;
-      case 'Loan': return Icons.handshake_outlined;
-      case 'Supplies': return Icons.shopping_cart;
-      default: return Icons.payments_outlined;
+      case 'Food':
+        return Icons.fastfood;
+      case 'Transport':
+        return Icons.directions_car;
+      case 'Laundry':
+        return Icons.local_laundry_service;
+      case 'Bills':
+        return Icons.receipt;
+      case 'Loan':
+        return Icons.handshake_outlined;
+      case 'Supplies':
+        return Icons.shopping_cart;
+      default:
+        return Icons.payments_outlined;
     }
   }
 
@@ -44,12 +51,28 @@ class _DashboardScreenState extends State<DashboardScreen> {
   void _showTransactionsPopup(DateTime day) {
     showModalBottomSheet(
       context: context,
-      isScrollControlled: true, 
+      isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (context) {
         return Consumer<ExpenseProvider>(
           builder: (context, provider, child) {
-            final dailyTransactions = provider.expenses.where((tx) => isSameDay(tx.date, day)).toList();
+            final dailyTransactions = provider.expenses
+                .where((tx) => isSameDay(tx.date, day))
+                .toList();
+
+            // Calculate daily total and fetch ideal limit
+            final settings = Provider.of<SettingsProvider>(
+              context,
+              listen: false,
+            );
+            final idealDaily = settings.idealDailySpend;
+
+            double dailyTotal = 0.0;
+            for (var tx in dailyTransactions) {
+              if (tx.category == 'Loan' && tx.isCleared)
+                continue; // Don't count cleared loans against the budget
+              dailyTotal += tx.amount;
+            }
 
             return Container(
               decoration: const BoxDecoration(
@@ -63,35 +86,64 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   children: [
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(
-                          isSameDay(day, DateTime.now()) 
-                              ? "Today's Activity" 
-                              : DateFormat('MMM d, yyyy').format(day),
-                          style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.black87),
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              isSameDay(day, DateTime.now())
+                                  ? "Today's Activity"
+                                  : DateFormat('MMM d, yyyy').format(day),
+                              style: const TextStyle(
+                                fontSize: 20,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.black87,
+                              ),
+                            ),
+                            // NEW: Shows the daily total and turns red if over the ideal limit!
+                            if (dailyTransactions.isNotEmpty) ...[
+                              const SizedBox(height: 4),
+                              Text(
+                                'Total Spent: Rs ${dailyTotal.toStringAsFixed(0)}',
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.bold,
+                                  color: dailyTotal > idealDaily
+                                      ? Colors.redAccent
+                                      : primaryTeal,
+                                ),
+                              ),
+                            ],
+                          ],
                         ),
                         IconButton(
                           icon: const Icon(Icons.close, color: Colors.grey),
                           onPressed: () => Navigator.pop(context),
-                        )
+                        ),
                       ],
                     ),
                     const SizedBox(height: 16),
-                    
+
                     if (dailyTransactions.isEmpty)
                       const Padding(
                         padding: EdgeInsets.symmetric(vertical: 20),
                         child: PremiumEmptyState(
                           title: 'No Expenses',
-                          subtitle: 'You have not logged any spending for this day.',
+                          subtitle:
+                              'You have not logged any spending for this day.',
                           icon: Icons.receipt_long_outlined,
                         ),
                       )
                     else
                       ConstrainedBox(
-                        constraints: BoxConstraints(maxHeight: MediaQuery.of(context).size.height * 0.45),
+                        constraints: BoxConstraints(
+                          maxHeight: MediaQuery.of(context).size.height * 0.45,
+                        ),
                         child: ListView.builder(
                           shrinkWrap: true,
+                          physics:
+                              const BouncingScrollPhysics(), // Added bouncy scrolling just in case
                           itemCount: dailyTransactions.length,
                           itemBuilder: (context, index) {
                             final tx = dailyTransactions[index];
@@ -100,13 +152,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
                             Color amountColor = Colors.redAccent;
                             String amountPrefix = '- ';
-                            
+
                             if (isLoan) {
                               if (isCleared) {
-                                amountColor = Colors.green; 
+                                amountColor = Colors.green;
                                 amountPrefix = '+ ';
                               } else {
-                                amountColor = Colors.orange.shade700; 
+                                amountColor = Colors.orange.shade700;
                                 amountPrefix = '⏳ ';
                               }
                             }
@@ -115,42 +167,84 @@ class _DashboardScreenState extends State<DashboardScreen> {
                               padding: const EdgeInsets.only(bottom: 12),
                               child: Container(
                                 decoration: BoxDecoration(
-                                  color: isLoan && !isCleared ? Colors.orange.shade50 : Colors.white,
+                                  color: isLoan && !isCleared
+                                      ? Colors.orange.shade50
+                                      : Colors.white,
                                   borderRadius: BorderRadius.circular(16),
-                                  border: Border.all(color: isLoan && !isCleared ? Colors.orange.shade200 : Colors.grey.shade100),
-                                  boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.03), blurRadius: 10, offset: const Offset(0, 4))]
+                                  border: Border.all(
+                                    color: isLoan && !isCleared
+                                        ? Colors.orange.shade200
+                                        : Colors.grey.shade100,
+                                  ),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: Colors.black.withValues(
+                                        alpha: 0.03,
+                                      ),
+                                      blurRadius: 10,
+                                      offset: const Offset(0, 4),
+                                    ),
+                                  ],
                                 ),
                                 child: ListTile(
-                                  contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                                  onTap: isLoan ? () {
-                                    final updatedTx = tx.copyWith(isCleared: !isCleared);
-                                    provider.updateExpense(updatedTx);
-                                  } : null,
+                                  contentPadding: const EdgeInsets.symmetric(
+                                    horizontal: 16,
+                                    vertical: 8,
+                                  ),
+                                  onTap: isLoan
+                                      ? () {
+                                          final updatedTx = tx.copyWith(
+                                            isCleared: !isCleared,
+                                          );
+                                          provider.updateExpense(updatedTx);
+                                        }
+                                      : null,
                                   leading: CircleAvatar(
-                                    backgroundColor: isLoan && !isCleared ? Colors.orange.withValues(alpha: 0.2) : primaryTeal.withValues(alpha: 0.1),
-                                    child: Icon(_getCategoryIcon(tx.category), color: isLoan && !isCleared ? Colors.orange.shade700 : primaryTeal),
+                                    backgroundColor: isLoan && !isCleared
+                                        ? Colors.orange.withValues(alpha: 0.2)
+                                        : primaryTeal.withValues(alpha: 0.1),
+                                    child: Icon(
+                                      _getCategoryIcon(tx.category),
+                                      color: isLoan && !isCleared
+                                          ? Colors.orange.shade700
+                                          : primaryTeal,
+                                    ),
                                   ),
                                   title: Text(
-                                    tx.label, 
+                                    tx.label,
                                     style: TextStyle(
                                       fontWeight: FontWeight.bold,
-                                      decoration: isLoan && isCleared ? TextDecoration.lineThrough : null, 
-                                      color: isLoan && isCleared ? Colors.grey : Colors.black87,
-                                    )
+                                      decoration: isLoan && isCleared
+                                          ? TextDecoration.lineThrough
+                                          : null,
+                                      color: isLoan && isCleared
+                                          ? Colors.grey
+                                          : Colors.black87,
+                                    ),
                                   ),
                                   subtitle: Text(
-                                    isLoan 
-                                      ? (isCleared ? 'Loan • Cleared' : 'Loan • Tap to mark as paid') 
-                                      : tx.category, 
+                                    isLoan
+                                        ? (isCleared
+                                              ? 'Loan • Cleared'
+                                              : 'Loan • Tap to mark as paid')
+                                        : tx.category,
                                     style: TextStyle(
-                                      color: isLoan && !isCleared ? Colors.orange.shade800 : Colors.grey.shade600, 
+                                      color: isLoan && !isCleared
+                                          ? Colors.orange.shade800
+                                          : Colors.grey.shade600,
                                       fontSize: 12,
-                                      fontWeight: isLoan && !isCleared ? FontWeight.bold : FontWeight.normal,
-                                    )
+                                      fontWeight: isLoan && !isCleared
+                                          ? FontWeight.bold
+                                          : FontWeight.normal,
+                                    ),
                                   ),
                                   trailing: Text(
-                                    '$amountPrefix Rs ${tx.amount.toStringAsFixed(0)}', 
-                                    style: TextStyle(fontWeight: FontWeight.bold, color: amountColor, fontSize: 16)
+                                    '$amountPrefix Rs ${tx.amount.toStringAsFixed(0)}',
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      color: amountColor,
+                                      fontSize: 16,
+                                    ),
                                   ),
                                 ),
                               ),
@@ -158,9 +252,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
                           },
                         ),
                       ),
-                    
+
                     const SizedBox(height: 24),
-                    
+
                     SizedBox(
                       width: double.infinity,
                       child: ElevatedButton.icon(
@@ -168,24 +262,32 @@ class _DashboardScreenState extends State<DashboardScreen> {
                           backgroundColor: primaryTeal,
                           foregroundColor: Colors.white,
                           padding: const EdgeInsets.symmetric(vertical: 16),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
                           elevation: 0,
                         ),
                         onPressed: () {
-                          Navigator.pop(context); 
-                          context.go('/expense', extra: day); 
+                          Navigator.pop(context);
+                          context.go('/expense', extra: day);
                         },
                         icon: const Icon(Icons.add),
-                        label: const Text('Add Expense for this Day', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                        label: const Text(
+                          'Add Expense for this Day',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
                       ),
                     ),
                   ],
                 ),
               ),
             );
-          }
+          },
         );
-      }
+      },
     );
   }
 
@@ -208,27 +310,39 @@ class _DashboardScreenState extends State<DashboardScreen> {
     // 3. Calculate REAL spending for current month
     double currentSpent = 0.0;
     double todaySpent = 0.0;
-    
+
     for (var tx in allExpenses) {
       if (tx.date.month == today.month && tx.date.year == today.year) {
-        if (tx.category == 'Loan' && tx.isCleared) continue; 
-        
+        if (tx.category == 'Loan' && tx.isCleared) continue;
+
         currentSpent += tx.amount;
         if (isSameDay(tx.date, today)) todaySpent += tx.amount;
       }
     }
 
-    final double budgetPercentage = monthlyBudget > 0 ? (currentSpent / monthlyBudget).clamp(0.0, 1.0) : 0.0;
-    final double dailyAverageSpent = currentDay > 0 ? (currentSpent / currentDay) : 0.0;
+    final double budgetPercentage = monthlyBudget > 0
+        ? (currentSpent / monthlyBudget).clamp(0.0, 1.0)
+        : 0.0;
+    final double dailyAverageSpent = currentDay > 0
+        ? (currentSpent / currentDay)
+        : 0.0;
     final double remainingBudget = monthlyBudget - currentSpent;
-    final double safeDailySpend = remainingDays > 0 ? (remainingBudget / remainingDays).clamp(0.0, double.infinity) : 0.0;
+    final double safeDailySpend = remainingDays > 0
+        ? (remainingBudget / remainingDays).clamp(0.0, double.infinity)
+        : 0.0;
 
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
         backgroundColor: Colors.white,
         elevation: 0,
-        title: Text('${DateFormat('MMMM').format(today)} Overview', style: const TextStyle(color: Colors.black87, fontWeight: FontWeight.bold)),
+        title: Text(
+          '${DateFormat('MMMM').format(today)} Overview',
+          style: const TextStyle(
+            color: Colors.black87,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16.0),
@@ -238,12 +352,25 @@ class _DashboardScreenState extends State<DashboardScreen> {
             Container(
               width: double.infinity,
               padding: const EdgeInsets.all(24),
-              decoration: BoxDecoration(color: primaryTeal, borderRadius: BorderRadius.circular(20)),
+              decoration: BoxDecoration(
+                color: primaryTeal,
+                borderRadius: BorderRadius.circular(20),
+              ),
               child: Column(
                 children: [
-                  const Text('Today Spent', style: TextStyle(color: Colors.white70, fontSize: 16)),
+                  const Text(
+                    'Today Spent',
+                    style: TextStyle(color: Colors.white70, fontSize: 16),
+                  ),
                   const SizedBox(height: 8),
-                  Text('Rs ${todaySpent.toStringAsFixed(0)}', style: const TextStyle(color: Colors.white, fontSize: 44, fontWeight: FontWeight.bold)),
+                  Text(
+                    'Rs ${todaySpent.toStringAsFixed(0)}',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 44,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
                 ],
               ),
             ),
@@ -251,16 +378,44 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
             Row(
               children: [
-                Expanded(child: _buildInfoBox('Avg Spent', 'Rs ${dailyAverageSpent.toStringAsFixed(0)}', primaryTeal.withValues(alpha: 0.1), primaryTeal)),
+                Expanded(
+                  child: _buildInfoBox(
+                    'Avg Spent',
+                    'Rs ${dailyAverageSpent.toStringAsFixed(0)}',
+                    primaryTeal.withValues(alpha: 0.1),
+                    primaryTeal,
+                  ),
+                ),
                 const SizedBox(width: 8),
-                Expanded(child: _buildInfoBox('Ideal Daily', 'Rs ${idealDailySpend.toStringAsFixed(0)}', Colors.purple.withValues(alpha: 0.1), Colors.purple)),
+                Expanded(
+                  child: _buildInfoBox(
+                    'Ideal Daily',
+                    'Rs ${idealDailySpend.toStringAsFixed(0)}',
+                    Colors.purple.withValues(alpha: 0.1),
+                    Colors.purple,
+                  ),
+                ),
                 const SizedBox(width: 8),
-                Expanded(child: _buildInfoBox('Safe to Spend', 'Rs ${safeDailySpend.toStringAsFixed(0)}', Colors.orange.withValues(alpha: 0.1), Colors.orange.shade800)),
+                Expanded(
+                  child: _buildInfoBox(
+                    'Safe to Spend',
+                    'Rs ${safeDailySpend.toStringAsFixed(0)}',
+                    Colors.orange.withValues(alpha: 0.1),
+                    Colors.orange.shade800,
+                  ),
+                ),
               ],
             ),
             const SizedBox(height: 28),
 
-            const Text('Monthly Budget', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.black87)),
+            const Text(
+              'Monthly Budget',
+              style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+                color: Colors.black87,
+              ),
+            ),
             const SizedBox(height: 16),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -268,15 +423,33 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text('Spent Till Date', style: TextStyle(color: Colors.grey)),
-                    Text('Rs ${currentSpent.toStringAsFixed(0)}', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                    const Text(
+                      'Spent Till Date',
+                      style: TextStyle(color: Colors.grey),
+                    ),
+                    Text(
+                      'Rs ${currentSpent.toStringAsFixed(0)}',
+                      style: const TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
                   ],
                 ),
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
-                    const Text('Total Budget', style: TextStyle(color: Colors.grey)),
-                    Text('Rs ${monthlyBudget.toStringAsFixed(0)}', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                    const Text(
+                      'Total Budget',
+                      style: TextStyle(color: Colors.grey),
+                    ),
+                    Text(
+                      'Rs ${monthlyBudget.toStringAsFixed(0)}',
+                      style: const TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
                   ],
                 ),
               ],
@@ -288,14 +461,31 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 value: budgetPercentage,
                 minHeight: 14,
                 backgroundColor: Colors.grey.shade200,
-                valueColor: AlwaysStoppedAnimation<Color>(budgetPercentage > 0.9 ? Colors.redAccent : primaryTeal),
+                valueColor: AlwaysStoppedAnimation<Color>(
+                  budgetPercentage > 0.9 ? Colors.redAccent : primaryTeal,
+                ),
               ),
             ),
             const SizedBox(height: 8),
-            Text('${(budgetPercentage * 100).toStringAsFixed(1)}% of your budget used', style: TextStyle(color: budgetPercentage > 0.9 ? Colors.redAccent : Colors.grey.shade700, fontWeight: FontWeight.w500)),
+            Text(
+              '${(budgetPercentage * 100).toStringAsFixed(1)}% of your budget used',
+              style: TextStyle(
+                color: budgetPercentage > 0.9
+                    ? Colors.redAccent
+                    : Colors.grey.shade700,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
             const SizedBox(height: 28),
 
-            const Text('Expense Calendar', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.black87)),
+            const Text(
+              'Expense Calendar',
+              style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+                color: Colors.black87,
+              ),
+            ),
             const SizedBox(height: 12),
             Container(
               decoration: BoxDecoration(
@@ -308,12 +498,25 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 lastDay: DateTime.utc(2030, 12, 31),
                 focusedDay: _focusedDay,
                 selectedDayPredicate: (day) => isSameDay(_selectedDay, day),
-                headerStyle: const HeaderStyle(formatButtonVisible: false, titleCentered: true),
-                
+
+                // NEW: This forces the calendar to only listen to left/right swipes
+                // allowing you to scroll vertically through the dashboard!
+                availableGestures: AvailableGestures.horizontalSwipe,
+
+                headerStyle: const HeaderStyle(
+                  formatButtonVisible: false,
+                  titleCentered: true,
+                ),
+
                 calendarBuilders: CalendarBuilders(
                   markerBuilder: (context, day, events) {
-                    bool hasPendingLoan = allExpenses.any((tx) => isSameDay(tx.date, day) && tx.category == 'Loan' && tx.isCleared == false);
-                    
+                    bool hasPendingLoan = allExpenses.any(
+                      (tx) =>
+                          isSameDay(tx.date, day) &&
+                          tx.category == 'Loan' &&
+                          tx.isCleared == false,
+                    );
+
                     if (hasPendingLoan) {
                       return Center(
                         child: Container(
@@ -321,7 +524,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
                           height: 42,
                           decoration: BoxDecoration(
                             shape: BoxShape.circle,
-                            border: Border.all(color: Colors.orange.shade700, width: 2.5),
+                            border: Border.all(
+                              color: Colors.orange.shade700,
+                              width: 2.5,
+                            ),
                           ),
                         ),
                       );
@@ -330,8 +536,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   },
                 ),
                 calendarStyle: CalendarStyle(
-                  todayDecoration: BoxDecoration(color: primaryTeal.withValues(alpha: 0.3), shape: BoxShape.circle),
-                  selectedDecoration: BoxDecoration(color: primaryTeal, shape: BoxShape.circle),
+                  todayDecoration: BoxDecoration(
+                    color: primaryTeal.withValues(alpha: 0.3),
+                    shape: BoxShape.circle,
+                  ),
+                  selectedDecoration: BoxDecoration(
+                    color: primaryTeal,
+                    shape: BoxShape.circle,
+                  ),
                 ),
                 onDaySelected: (selectedDay, focusedDay) {
                   setState(() {
@@ -349,7 +561,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
-  Widget _buildInfoBox(String title, String amount, Color bgColor, Color textColor) {
+  Widget _buildInfoBox(
+    String title,
+    String amount,
+    Color bgColor,
+    Color textColor,
+  ) {
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
       decoration: BoxDecoration(
@@ -360,9 +577,21 @@ class _DashboardScreenState extends State<DashboardScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          Text(title, style: const TextStyle(color: Colors.grey, fontSize: 11), textAlign: TextAlign.center),
+          Text(
+            title,
+            style: const TextStyle(color: Colors.grey, fontSize: 11),
+            textAlign: TextAlign.center,
+          ),
           const SizedBox(height: 4),
-          Text(amount, style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: textColor), textAlign: TextAlign.center),
+          Text(
+            amount,
+            style: TextStyle(
+              fontWeight: FontWeight.bold,
+              fontSize: 14,
+              color: textColor,
+            ),
+            textAlign: TextAlign.center,
+          ),
         ],
       ),
     );

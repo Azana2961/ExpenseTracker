@@ -7,7 +7,7 @@ import '../models/expense_model.dart';
 
 class ExpenseScreen extends StatefulWidget {
   final DateTime? selectedDate;
-  
+
   const ExpenseScreen({super.key, this.selectedDate});
 
   @override
@@ -17,10 +17,10 @@ class ExpenseScreen extends StatefulWidget {
 class _ExpenseScreenState extends State<ExpenseScreen> {
   final Color primaryTeal = const Color(0xFF2EC4B6);
   final _formKey = GlobalKey<FormState>();
-  
+
   final TextEditingController _amountController = TextEditingController();
   final TextEditingController _descController = TextEditingController();
-  
+
   String _selectedCategory = 'Food';
 
   @override
@@ -30,9 +30,14 @@ class _ExpenseScreenState extends State<ExpenseScreen> {
     super.dispose();
   }
 
-  void _saveExpense(String category, String amountStr, String description) {
+  // Added 'async' here to wait for the database
+  Future<void> _saveExpense(
+    String category,
+    String amountStr,
+    String description,
+  ) async {
     if (amountStr.isEmpty) return;
-    
+
     final double? amount = double.tryParse(amountStr);
     if (amount == null) return; // Prevent saving if amount is invalid
 
@@ -40,27 +45,82 @@ class _ExpenseScreenState extends State<ExpenseScreen> {
 
     // 1. Create the Database Record
     final newExpense = ExpenseModel(
-      id: DateTime.now().millisecondsSinceEpoch.toString(), // Unique ID based on exact millisecond
+      id: DateTime.now().millisecondsSinceEpoch
+          .toString(), // Unique ID based on exact millisecond
       date: targetDate,
-      label: description.isNotEmpty ? description : category, // Fallback to category if no desc
+      label: description.isNotEmpty
+          ? description
+          : category, // Fallback to category if no desc
       amount: amount,
       category: category,
-      isCleared: category == 'Loan' ? false : true, // Auto-mark Loans as pending
+      isCleared: category == 'Loan'
+          ? false
+          : true, // Auto-mark Loans as pending
     );
 
-    // 2. Send to Provider to save to SQLite and update memory!
-    Provider.of<ExpenseProvider>(context, listen: false).addExpense(newExpense);
+    try {
+      // 2. AWAIT the Provider to save to SQLite and update memory!
+      await Provider.of<ExpenseProvider>(
+        context,
+        listen: false,
+      ).addExpense(newExpense);
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Successfully logged Rs $amountStr for $category!'),
-        backgroundColor: primaryTeal,
-        behavior: SnackBarBehavior.floating,
-      ),
-    );
-    _amountController.clear();
-    _descController.clear();
-    FocusScope.of(context).unfocus();
+      if (!mounted) return;
+
+      // Unfocus keyboard and clear inputs FIRST
+      _amountController.clear();
+      _descController.clear();
+      FocusScope.of(context).unfocus();
+
+      // Clear any existing popups so they don't get stuck in a queue
+      ScaffoldMessenger.of(context).clearSnackBars();
+
+      // Show the new premium Top-Snackbar
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Successfully logged Rs $amountStr for $category!',
+            textAlign: TextAlign.center,
+            style: const TextStyle(
+              fontWeight: FontWeight.bold,
+              fontSize: 15,
+              color: Colors.white,
+            ),
+          ),
+          backgroundColor: primaryTeal,
+          behavior: SnackBarBehavior.floating,
+          duration: const Duration(
+            milliseconds: 1200,
+          ), // Extremely fast (1.2 seconds)
+          dismissDirection:
+              DismissDirection.up, // Allows you to swipe it away upwards
+          margin: EdgeInsets.only(
+            bottom:
+                MediaQuery.of(context).size.height -
+                180, // Pushes it securely to the top
+            left: 20,
+            right: 20,
+          ),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(30),
+          ), // Pill shape
+          elevation: 6,
+        ),
+      );
+    } catch (e) {
+      // 3. Catch silent background crashes!
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Database Error! Please UNINSTALL the app from your device and reinstall to clear the cache.',
+          ),
+          backgroundColor: Colors.redAccent,
+          behavior: SnackBarBehavior.floating,
+          duration: Duration(seconds: 5),
+        ),
+      );
+    }
   }
 
   @override
@@ -85,8 +145,18 @@ class _ExpenseScreenState extends State<ExpenseScreen> {
         elevation: 0,
         title: Column(
           children: [
-            const Text('Log Expense', style: TextStyle(color: Colors.black87, fontWeight: FontWeight.bold, fontSize: 18)),
-            Text(formattedDate, style: const TextStyle(color: Colors.grey, fontSize: 13)),
+            const Text(
+              'Log Expense',
+              style: TextStyle(
+                color: Colors.black87,
+                fontWeight: FontWeight.bold,
+                fontSize: 18,
+              ),
+            ),
+            Text(
+              formattedDate,
+              style: const TextStyle(color: Colors.grey, fontSize: 13),
+            ),
           ],
         ),
         centerTitle: true,
@@ -96,7 +166,14 @@ class _ExpenseScreenState extends State<ExpenseScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text('Quick Add', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.black87)),
+            const Text(
+              'Quick Add',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                color: Colors.black87,
+              ),
+            ),
             const SizedBox(height: 12),
             GridView.builder(
               shrinkWrap: true,
@@ -105,19 +182,31 @@ class _ExpenseScreenState extends State<ExpenseScreen> {
                 crossAxisCount: 2,
                 crossAxisSpacing: 12,
                 mainAxisSpacing: 12,
-                childAspectRatio: 1.6, 
+                childAspectRatio: 1.6,
               ),
-              itemCount: quickAdds.length, 
+              itemCount: quickAdds.length,
               itemBuilder: (context, index) {
                 final item = quickAdds[index];
-                return _buildQuickAddBtn(item['label'], item['amount'].toString(), item['category'], Color(item['colorValue']));
+                return _buildQuickAddBtn(
+                  item['label'],
+                  item['amount'].toString(),
+                  item['category'],
+                  Color(item['colorValue']),
+                );
               },
             ),
             const SizedBox(height: 32),
             const Divider(color: Colors.black12),
             const SizedBox(height: 24),
 
-            const Text('Manual Entry', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.black87)),
+            const Text(
+              'Manual Entry',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                color: Colors.black87,
+              ),
+            ),
             const SizedBox(height: 16),
             Form(
               key: _formKey,
@@ -126,17 +215,33 @@ class _ExpenseScreenState extends State<ExpenseScreen> {
                   TextFormField(
                     controller: _amountController,
                     keyboardType: TextInputType.number,
-                    style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+                    style: const TextStyle(
+                      fontSize: 24,
+                      fontWeight: FontWeight.bold,
+                    ),
                     decoration: InputDecoration(
                       labelText: 'Amount',
                       prefixIcon: Padding(
                         padding: const EdgeInsets.all(14.0),
-                        child: Text('Rs', style: TextStyle(color: primaryTeal, fontWeight: FontWeight.bold, fontSize: 18)),
+                        child: Text(
+                          'Rs',
+                          style: TextStyle(
+                            color: primaryTeal,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 18,
+                          ),
+                        ),
                       ),
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                      focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: primaryTeal, width: 2)),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide(color: primaryTeal, width: 2),
+                      ),
                     ),
-                    validator: (value) => value!.isEmpty ? 'Please enter an amount' : null,
+                    validator: (value) =>
+                        value!.isEmpty ? 'Please enter an amount' : null,
                   ),
                   const SizedBox(height: 16),
 
@@ -144,14 +249,22 @@ class _ExpenseScreenState extends State<ExpenseScreen> {
                     value: _selectedCategory,
                     decoration: InputDecoration(
                       labelText: 'Category',
-                      prefixIcon: Icon(Icons.category_outlined, color: primaryTeal),
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                      focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: primaryTeal, width: 2)),
+                      prefixIcon: Icon(
+                        Icons.category_outlined,
+                        color: primaryTeal,
+                      ),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide(color: primaryTeal, width: 2),
+                      ),
                     ),
                     items: categories.map((String category) {
                       return DropdownMenuItem(
-                        value: category, 
-                        child: Text(category)
+                        value: category,
+                        child: Text(category),
                       );
                     }).toList(),
                     onChanged: (String? newValue) {
@@ -167,8 +280,13 @@ class _ExpenseScreenState extends State<ExpenseScreen> {
                     decoration: InputDecoration(
                       labelText: 'Description (Optional)',
                       prefixIcon: Icon(Icons.notes, color: primaryTeal),
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                      focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: primaryTeal, width: 2)),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide(color: primaryTeal, width: 2),
+                      ),
                     ),
                   ),
                   const SizedBox(height: 28),
@@ -180,15 +298,27 @@ class _ExpenseScreenState extends State<ExpenseScreen> {
                         backgroundColor: primaryTeal,
                         foregroundColor: Colors.white,
                         padding: const EdgeInsets.symmetric(vertical: 16),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
                         elevation: 2,
                       ),
                       onPressed: () {
                         if (_formKey.currentState!.validate()) {
-                          _saveExpense(_selectedCategory, _amountController.text, _descController.text);
+                          _saveExpense(
+                            _selectedCategory,
+                            _amountController.text,
+                            _descController.text,
+                          );
                         }
                       },
-                      child: const Text('Save Expense', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                      child: const Text(
+                        'Save Expense',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
                     ),
                   ),
                 ],
@@ -201,12 +331,17 @@ class _ExpenseScreenState extends State<ExpenseScreen> {
     );
   }
 
-  Widget _buildQuickAddBtn(String label, String amount, String category, Color color) {
+  Widget _buildQuickAddBtn(
+    String label,
+    String amount,
+    String category,
+    Color color,
+  ) {
     return InkWell(
       onTap: () => _saveExpense(category, amount, label),
       borderRadius: BorderRadius.circular(12),
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 8), 
+        padding: const EdgeInsets.symmetric(horizontal: 8),
         decoration: BoxDecoration(
           color: color.withValues(alpha: 0.1),
           borderRadius: BorderRadius.circular(12),
@@ -215,9 +350,25 @@ class _ExpenseScreenState extends State<ExpenseScreen> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Text(label, textAlign: TextAlign.center, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontWeight: FontWeight.bold, color: color.withValues(alpha: 0.8), fontSize: 13)),
+            Text(
+              label,
+              textAlign: TextAlign.center,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                color: color.withValues(alpha: 0.8),
+                fontSize: 13,
+              ),
+            ),
             const SizedBox(height: 4),
-            Text('Rs $amount', textAlign: TextAlign.center, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontWeight: FontWeight.w900, color: color)),
+            Text(
+              'Rs $amount',
+              textAlign: TextAlign.center,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(fontWeight: FontWeight.w900, color: color),
+            ),
           ],
         ),
       ),
