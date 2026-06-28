@@ -8,29 +8,32 @@ class SplashScreen extends StatefulWidget {
   State<SplashScreen> createState() => _SplashScreenState();
 }
 
-class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderStateMixin {
+class _SplashScreenState extends State<SplashScreen>
+    with SingleTickerProviderStateMixin {
   late AnimationController _controller;
   late Animation<double> _fadeAnimation;
-  late Animation<Offset> _slideAnimation;
 
   @override
   void initState() {
     super.initState();
-    _controller = AnimationController(vsync: this, duration: const Duration(milliseconds: 1200));
-    
-    _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
-      CurvedAnimation(parent: _controller, curve: Curves.easeOut),
+
+    // Setup a smooth fade-in animation
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1500),
     );
-    
-    _slideAnimation = Tween<Offset>(begin: const Offset(0, 0.1), end: Offset.zero).animate(
-      CurvedAnimation(parent: _controller, curve: Curves.easeOutQuart),
-    );
+    _fadeAnimation = Tween<double>(
+      begin: 0.0,
+      end: 1.0,
+    ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeIn));
 
     _controller.forward();
 
-    // Stays on screen for 3 seconds before sliding to the dashboard
+    // Wait 3 seconds, then navigate to the Dashboard
     Future.delayed(const Duration(seconds: 3), () {
-      if (mounted) context.go('/dashboard');
+      if (mounted) {
+        context.go('/dashboard');
+      }
     });
   }
 
@@ -43,38 +46,58 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF2EC4B6),
+      backgroundColor: const Color(0xFF2EC4B6), // Your primary teal color
       body: Center(
-        child: SlideTransition(
-          position: _slideAnimation,
-          child: FadeTransition(
-            opacity: _fadeAnimation,
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(24),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    shape: BoxShape.circle,
-                    boxShadow: [
-                      BoxShadow(color: Colors.black.withValues(alpha: 0.1), blurRadius: 30, spreadRadius: 5),
-                    ],
-                  ),
-                  child: const Icon(Icons.account_balance_wallet_rounded, size: 64, color: Color(0xFF2EC4B6)),
+        child: FadeTransition(
+          opacity: _fadeAnimation,
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              // Premium Icon Container
+              Container(
+                padding: const EdgeInsets.all(24),
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: Colors.white.withValues(alpha: 0.2),
                 ),
-                const SizedBox(height: 32),
-                const Text(
-                  'Hostel Expense',
-                  style: TextStyle(fontSize: 32, fontWeight: FontWeight.w900, color: Colors.white, letterSpacing: 1.2),
+                child: const Icon(
+                  Icons.account_balance_wallet_outlined,
+                  size: 80,
+                  color: Colors.white,
                 ),
-                const SizedBox(height: 8),
-                Text(
-                  'ENGINEERED BY AZAN',
-                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.white.withValues(alpha: 0.8), letterSpacing: 4),
+              ),
+              const SizedBox(height: 24),
+
+              // App Name
+              const Text(
+                'Karcha Yar',
+                style: TextStyle(
+                  fontSize: 42,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white,
+                  letterSpacing: 1.2,
                 ),
-              ],
-            ),
+              ),
+              const SizedBox(height: 8),
+
+              // Subtitle
+              const Text(
+                'Track Every Rupee',
+                style: TextStyle(
+                  fontSize: 16,
+                  color: Colors.white70,
+                  fontWeight: FontWeight.w500,
+                  letterSpacing: 0.5,
+                ),
+              ),
+              const SizedBox(height: 60),
+
+              // Loading Indicator
+              const CircularProgressIndicator(
+                valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                strokeWidth: 3,
+              ),
+            ],
           ),
         ),
       ),

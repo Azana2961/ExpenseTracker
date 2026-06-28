@@ -1,13 +1,31 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:provider/provider.dart'; // Added Provider package
 import 'features/splash/presentation/splash_screen.dart';
 import 'features/dashboard/presentation/dashboard_screen.dart';
 import 'features/expenses/presentation/expense_screen.dart';
 import 'features/analytics/presentation/analytics_screen.dart';
 import 'features/setup/presentation/setup_screen.dart';
+import 'features/expenses/providers/expense_provider.dart'; 
+import 'features/setup/providers/settings_provider.dart'; // 1. Import the new provider
 
 void main() {
-  runApp(const HostelExpenseApp());
+  runApp(
+    // We wrap the entire app in a MultiProvider so the "Brain" is accessible globally!
+    MultiProvider(
+      providers: [
+        ChangeNotifierProvider(
+          // As soon as the app starts, we create the provider AND load the database history!
+          create: (_) => ExpenseProvider()..loadExpenses(),
+        ),
+        ChangeNotifierProvider(
+          // 2. Add the SettingsProvider here!
+          create: (_) => SettingsProvider(),
+        ),
+      ],
+      child: const HostelExpenseApp(),
+    ),
+  );
 }
 
 // Custom widget to safely animate tabs without duplicating GlobalKeys
@@ -76,10 +94,9 @@ class ScaffoldWithNavBar extends StatelessWidget {
         selectedIndex: navigationShell.currentIndex,
         onDestinationSelected: (index) {
           if (index == 1) {
-            // --- FIX: ALWAYS FORCE "TODAY" WHEN TAPPING THE BOTTOM NAV ADD BUTTON ---
+            // Force "Today" when tapping the bottom nav Add button
             context.go('/expense', extra: DateTime.now());
           } else {
-            // Default behavior for other tabs
             navigationShell.goBranch(
               index,
               initialLocation: index == navigationShell.currentIndex,

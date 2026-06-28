@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart';
-import 'dart:convert';
+import 'package:provider/provider.dart';
+import '../providers/settings_provider.dart';
 
 class SetupScreen extends StatefulWidget {
   const SetupScreen({super.key});
@@ -12,48 +12,34 @@ class SetupScreen extends StatefulWidget {
 class _SetupScreenState extends State<SetupScreen> {
   final Color primaryTeal = const Color(0xFF2EC4B6);
   
-  final TextEditingController _budgetController = TextEditingController(text: '15000');
-  final TextEditingController _idealDailyController = TextEditingController(text: '500');
+  final TextEditingController _budgetController = TextEditingController();
+  final TextEditingController _idealDailyController = TextEditingController();
 
-  // 'Loan' is now a built-in category
-  List<String> _categories = ['Food', 'Transport', 'Laundry', 'Supplies', 'Bills', 'Loan', 'Other'];
-  List<Map<String, dynamic>> _quickAdds = [
-    {'label': '🍳 Breakfast', 'amount': '240', 'category': 'Food', 'colorValue': Colors.orange.value},
-    {'label': '☕ Tea & Snack', 'amount': '80', 'category': 'Food', 'colorValue': Colors.brown.value},
-    {'label': '🛺 Rickshaw', 'amount': '100', 'category': 'Transport', 'colorValue': Colors.blue.value},
-    {'label': '👕 Laundry', 'amount': '150', 'category': 'Laundry', 'colorValue': Colors.indigo.value},
-  ];
+  List<String> _categories = [];
+  List<Map<String, dynamic>> _quickAdds = [];
 
   @override
   void initState() {
     super.initState();
-    _loadData();
-  }
-
-  Future<void> _loadData() async {
-    final prefs = await SharedPreferences.getInstance();
-    setState(() {
-      final savedCats = prefs.getStringList('categories');
-      if (savedCats != null) {
-        _categories = savedCats;
-        if (!_categories.contains('Loan')) _categories.add('Loan'); // Safety fallback
-      }
-
-      final savedQuick = prefs.getString('quickAdds');
-      if (savedQuick != null) _quickAdds = List<Map<String, dynamic>>.from(json.decode(savedQuick));
-      final savedBudget = prefs.getString('monthlyBudget');
-      if (savedBudget != null) _budgetController.text = savedBudget;
-      final savedIdeal = prefs.getString('idealDaily');
-      if (savedIdeal != null) _idealDailyController.text = savedIdeal;
+    // Load the initial values from the provider into the UI
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final provider = Provider.of<SettingsProvider>(context, listen: false);
+      setState(() {
+        _budgetController.text = provider.monthlyBudget.toStringAsFixed(0);
+        _idealDailyController.text = provider.idealDailySpend.toStringAsFixed(0);
+        _categories = List.from(provider.categories);
+        _quickAdds = List.from(provider.quickAdds);
+      });
     });
   }
 
-  Future<void> _saveData() async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setStringList('categories', _categories);
-    await prefs.setString('quickAdds', json.encode(_quickAdds));
-    await prefs.setString('monthlyBudget', _budgetController.text);
-    await prefs.setString('idealDaily', _idealDailyController.text);
+  void _saveData() {
+    Provider.of<SettingsProvider>(context, listen: false).saveSettings(
+      budget: double.tryParse(_budgetController.text) ?? 15000.0,
+      ideal: double.tryParse(_idealDailyController.text) ?? 500.0,
+      cats: _categories,
+      quicks: _quickAdds,
+    );
   }
 
   void _showManageCategoriesDialog() {

@@ -1,5 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:provider/provider.dart';
+import '../providers/expense_provider.dart';
+import '../../setup/providers/settings_provider.dart';
+import '../models/expense_model.dart';
 
 class ExpenseScreen extends StatefulWidget {
   final DateTime? selectedDate;
@@ -18,16 +22,6 @@ class _ExpenseScreenState extends State<ExpenseScreen> {
   final TextEditingController _descController = TextEditingController();
   
   String _selectedCategory = 'Food';
-  
-  // Local placeholder (Ensure 'Loan' is safely in this list!)
-  final List<String> _categories = ['Food', 'Transport', 'Laundry', 'Supplies', 'Bills', 'Loan', 'Other'];
-
-  final List<Map<String, dynamic>> _quickAdds = [
-    {'label': '🍳 Breakfast', 'amount': '240', 'category': 'Food', 'color': Colors.orange},
-    {'label': '☕ Tea & Snack', 'amount': '80', 'category': 'Food', 'color': Colors.brown},
-    {'label': '🛺 Rickshaw', 'amount': '100', 'category': 'Transport', 'color': Colors.blue},
-    {'label': '👕 Laundry', 'amount': '150', 'category': 'Laundry', 'color': Colors.indigo},
-  ];
 
   @override
   void dispose() {
@@ -36,11 +30,30 @@ class _ExpenseScreenState extends State<ExpenseScreen> {
     super.dispose();
   }
 
-  void _saveExpense(String category, String amount, String description) {
-    if (amount.isEmpty) return;
+  void _saveExpense(String category, String amountStr, String description) {
+    if (amountStr.isEmpty) return;
+    
+    final double? amount = double.tryParse(amountStr);
+    if (amount == null) return; // Prevent saving if amount is invalid
+
+    final targetDate = widget.selectedDate ?? DateTime.now();
+
+    // 1. Create the Database Record
+    final newExpense = ExpenseModel(
+      id: DateTime.now().millisecondsSinceEpoch.toString(), // Unique ID based on exact millisecond
+      date: targetDate,
+      label: description.isNotEmpty ? description : category, // Fallback to category if no desc
+      amount: amount,
+      category: category,
+      isCleared: category == 'Loan' ? false : true, // Auto-mark Loans as pending
+    );
+
+    // 2. Send to Provider to save to SQLite and update memory!
+    Provider.of<ExpenseProvider>(context, listen: false).addExpense(newExpense);
+
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text('Successfully logged Rs $amount for $category!'),
+        content: Text('Successfully logged Rs $amountStr for $category!'),
         backgroundColor: primaryTeal,
         behavior: SnackBarBehavior.floating,
       ),
@@ -52,6 +65,16 @@ class _ExpenseScreenState extends State<ExpenseScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // Read live categories and shortcuts from Provider
+    final settings = context.watch<SettingsProvider>();
+    final List<String> categories = settings.categories;
+    final List<Map<String, dynamic>> quickAdds = settings.quickAdds;
+
+    // Safety check if current selected category was deleted from settings
+    if (!categories.contains(_selectedCategory) && categories.isNotEmpty) {
+      _selectedCategory = categories.first;
+    }
+
     final DateTime targetDate = widget.selectedDate ?? DateTime.now();
     final String formattedDate = DateFormat('EEEE, MMMM d').format(targetDate);
 
@@ -84,10 +107,10 @@ class _ExpenseScreenState extends State<ExpenseScreen> {
                 mainAxisSpacing: 12,
                 childAspectRatio: 1.6, 
               ),
-              itemCount: _quickAdds.length, 
+              itemCount: quickAdds.length, 
               itemBuilder: (context, index) {
-                final item = _quickAdds[index];
-                return _buildQuickAddBtn(item['label'], item['amount'], item['category'], item['color']);
+                final item = quickAdds[index];
+                return _buildQuickAddBtn(item['label'], item['amount'].toString(), item['category'], Color(item['colorValue']));
               },
             ),
             const SizedBox(height: 32),
@@ -125,14 +148,16 @@ class _ExpenseScreenState extends State<ExpenseScreen> {
                       border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                       focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: primaryTeal, width: 2)),
                     ),
-                    items: _categories.map((String category) {
+                    items: categories.map((String category) {
                       return DropdownMenuItem(
                         value: category, 
                         child: Text(category)
                       );
                     }).toList(),
                     onChanged: (String? newValue) {
-                      setState(() => _selectedCategory = newValue!);
+                      if (newValue != null) {
+                        setState(() => _selectedCategory = newValue);
+                      }
                     },
                   ),
                   const SizedBox(height: 16),

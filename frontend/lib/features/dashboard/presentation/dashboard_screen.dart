@@ -2,7 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:table_calendar/table_calendar.dart';
 import 'package:intl/intl.dart';
+import 'package:provider/provider.dart';
 import '../../../core/widgets/premium_empty_state.dart';
+import '../../expenses/providers/expense_provider.dart';
+import '../../setup/providers/settings_provider.dart';
+import '../../expenses/models/expense_model.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -17,29 +21,23 @@ class _DashboardScreenState extends State<DashboardScreen> {
   DateTime _focusedDay = DateTime.now();
   DateTime? _selectedDay;
 
-  // Mock Database of expenses (Now supports 'Loan' and 'isCleared')
-  final List<Map<String, dynamic>> _allTransactions = [
-    {'id': '1', 'date': DateTime.now(), 'label': '🍔 Lunch', 'amount': '450', 'category': 'Food', 'icon': Icons.fastfood, 'isCleared': true},
-    {'id': '2', 'date': DateTime.now(), 'label': '🍕 Pizza (Ali)', 'amount': '800', 'category': 'Loan', 'icon': Icons.handshake_outlined, 'isCleared': false}, // PENDING LOAN
-    {'id': '3', 'date': DateTime.now().subtract(const Duration(days: 1)), 'label': '🛺 Rickshaw to Uni', 'amount': '150', 'category': 'Transport', 'icon': Icons.directions_car, 'isCleared': true},
-    {'id': '4', 'date': DateTime.now().subtract(const Duration(days: 2)), 'label': '👕 Laundry', 'amount': '300', 'category': 'Laundry', 'icon': Icons.local_laundry_service, 'isCleared': true},
-    {'id': '5', 'date': DateTime.now().subtract(const Duration(days: 2)), 'label': '☕ Coffee (Sara)', 'amount': '400', 'category': 'Loan', 'icon': Icons.handshake_outlined, 'isCleared': true}, // CLEARED LOAN
-  ];
-
   @override
   void initState() {
     super.initState();
     _selectedDay = _focusedDay;
   }
 
-  // Filter transactions based on the selected date
-  List<Map<String, dynamic>> _getTransactionsForDay(DateTime day) {
-    return _allTransactions.where((tx) => isSameDay(tx['date'] as DateTime, day)).toList();
-  }
-
-  // Check if a specific day has any un-cleared loans
-  bool _hasPendingLoan(DateTime day) {
-    return _allTransactions.any((tx) => isSameDay(tx['date'] as DateTime, day) && tx['category'] == 'Loan' && tx['isCleared'] == false);
+  // Helper to map categories to specific icons
+  IconData _getCategoryIcon(String category) {
+    switch (category) {
+      case 'Food': return Icons.fastfood;
+      case 'Transport': return Icons.directions_car;
+      case 'Laundry': return Icons.local_laundry_service;
+      case 'Bills': return Icons.receipt;
+      case 'Loan': return Icons.handshake_outlined;
+      case 'Supplies': return Icons.shopping_cart;
+      default: return Icons.payments_outlined;
+    }
   }
 
   // --- POPUP: SHOW TRANSACTIONS FOR SPECIFIC DAY ---
@@ -49,9 +47,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
       isScrollControlled: true, 
       backgroundColor: Colors.transparent,
       builder: (context) {
-        return StatefulBuilder(
-          builder: (context, setModalState) {
-            final dailyTransactions = _getTransactionsForDay(day);
+        return Consumer<ExpenseProvider>(
+          builder: (context, provider, child) {
+            final dailyTransactions = provider.expenses.where((tx) => isSameDay(tx.date, day)).toList();
 
             return Container(
               decoration: const BoxDecoration(
@@ -97,19 +95,18 @@ class _DashboardScreenState extends State<DashboardScreen> {
                           itemCount: dailyTransactions.length,
                           itemBuilder: (context, index) {
                             final tx = dailyTransactions[index];
-                            final isLoan = tx['category'] == 'Loan';
-                            final isCleared = tx['isCleared'] as bool? ?? true;
+                            final isLoan = tx.category == 'Loan';
+                            final isCleared = tx.isCleared;
 
-                            // UI styling based on Loan state
                             Color amountColor = Colors.redAccent;
                             String amountPrefix = '- ';
                             
                             if (isLoan) {
                               if (isCleared) {
-                                amountColor = Colors.green; // Got money back
+                                amountColor = Colors.green; 
                                 amountPrefix = '+ ';
                               } else {
-                                amountColor = Colors.orange.shade700; // Pending
+                                amountColor = Colors.orange.shade700; 
                                 amountPrefix = '⏳ ';
                               }
                             }
@@ -126,31 +123,25 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                 child: ListTile(
                                   contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                                   onTap: isLoan ? () {
-                                    // Logic to toggle the Loan Status
-                                    setState(() {
-                                      final txIndex = _allTransactions.indexWhere((t) => t['id'] == tx['id']);
-                                      if (txIndex != -1) {
-                                        _allTransactions[txIndex]['isCleared'] = !isCleared;
-                                      }
-                                    });
-                                    setModalState(() {}); // Refresh Popup UI
+                                    final updatedTx = tx.copyWith(isCleared: !isCleared);
+                                    provider.updateExpense(updatedTx);
                                   } : null,
                                   leading: CircleAvatar(
                                     backgroundColor: isLoan && !isCleared ? Colors.orange.withValues(alpha: 0.2) : primaryTeal.withValues(alpha: 0.1),
-                                    child: Icon(tx['icon'] as IconData, color: isLoan && !isCleared ? Colors.orange.shade700 : primaryTeal),
+                                    child: Icon(_getCategoryIcon(tx.category), color: isLoan && !isCleared ? Colors.orange.shade700 : primaryTeal),
                                   ),
                                   title: Text(
-                                    tx['label'] as String, 
+                                    tx.label, 
                                     style: TextStyle(
                                       fontWeight: FontWeight.bold,
-                                      decoration: isLoan && isCleared ? TextDecoration.lineThrough : null, // Strike through if cleared
+                                      decoration: isLoan && isCleared ? TextDecoration.lineThrough : null, 
                                       color: isLoan && isCleared ? Colors.grey : Colors.black87,
                                     )
                                   ),
                                   subtitle: Text(
                                     isLoan 
                                       ? (isCleared ? 'Loan • Cleared' : 'Loan • Tap to mark as paid') 
-                                      : tx['category'] as String, 
+                                      : tx.category, 
                                     style: TextStyle(
                                       color: isLoan && !isCleared ? Colors.orange.shade800 : Colors.grey.shade600, 
                                       fontSize: 12,
@@ -158,7 +149,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                     )
                                   ),
                                   trailing: Text(
-                                    '$amountPrefix Rs ${tx['amount']}', 
+                                    '$amountPrefix Rs ${tx.amount.toStringAsFixed(0)}', 
                                     style: TextStyle(fontWeight: FontWeight.bold, color: amountColor, fontSize: 16)
                                   ),
                                 ),
@@ -200,26 +191,44 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   @override
   Widget build(BuildContext context) {
-    const double currentSpent = 12500.0;
-    const double monthlyBudget = 15000.0;
-    const double idealDailySpend = 500.0; 
-    
+    // 1. Fetch live data from ExpenseProvider
+    final provider = context.watch<ExpenseProvider>();
+    final allExpenses = provider.expenses;
+
+    // 2. Watch live settings directly from the new SettingsProvider!
+    final settings = context.watch<SettingsProvider>();
+    final double monthlyBudget = settings.monthlyBudget;
+    final double idealDailySpend = settings.idealDailySpend;
+
     final DateTime today = DateTime.now();
     final int daysInMonth = DateUtils.getDaysInMonth(today.year, today.month);
     final int currentDay = today.day;
     final int remainingDays = daysInMonth - currentDay;
 
-    final double budgetPercentage = (currentSpent / monthlyBudget).clamp(0.0, 1.0);
-    final double dailyAverageSpent = currentSpent / currentDay;
+    // 3. Calculate REAL spending for current month
+    double currentSpent = 0.0;
+    double todaySpent = 0.0;
+    
+    for (var tx in allExpenses) {
+      if (tx.date.month == today.month && tx.date.year == today.year) {
+        if (tx.category == 'Loan' && tx.isCleared) continue; 
+        
+        currentSpent += tx.amount;
+        if (isSameDay(tx.date, today)) todaySpent += tx.amount;
+      }
+    }
+
+    final double budgetPercentage = monthlyBudget > 0 ? (currentSpent / monthlyBudget).clamp(0.0, 1.0) : 0.0;
+    final double dailyAverageSpent = currentDay > 0 ? (currentSpent / currentDay) : 0.0;
     final double remainingBudget = monthlyBudget - currentSpent;
-    final double safeDailySpend = remainingDays > 0 ? (remainingBudget / remainingDays) : 0.0;
+    final double safeDailySpend = remainingDays > 0 ? (remainingBudget / remainingDays).clamp(0.0, double.infinity) : 0.0;
 
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
         backgroundColor: Colors.white,
         elevation: 0,
-        title: const Text('June Overview', style: TextStyle(color: Colors.black87, fontWeight: FontWeight.bold)),
+        title: Text('${DateFormat('MMMM').format(today)} Overview', style: const TextStyle(color: Colors.black87, fontWeight: FontWeight.bold)),
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16.0),
@@ -230,11 +239,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
               width: double.infinity,
               padding: const EdgeInsets.all(24),
               decoration: BoxDecoration(color: primaryTeal, borderRadius: BorderRadius.circular(20)),
-              child: const Column(
+              child: Column(
                 children: [
-                  Text('Today Spent', style: TextStyle(color: Colors.white70, fontSize: 16)),
-                  SizedBox(height: 8),
-                  Text('Rs 240', style: TextStyle(color: Colors.white, fontSize: 44, fontWeight: FontWeight.bold)),
+                  const Text('Today Spent', style: TextStyle(color: Colors.white70, fontSize: 16)),
+                  const SizedBox(height: 8),
+                  Text('Rs ${todaySpent.toStringAsFixed(0)}', style: const TextStyle(color: Colors.white, fontSize: 44, fontWeight: FontWeight.bold)),
                 ],
               ),
             ),
@@ -301,13 +310,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 selectedDayPredicate: (day) => isSameDay(_selectedDay, day),
                 headerStyle: const HeaderStyle(formatButtonVisible: false, titleCentered: true),
                 
-                // --- CUSTOM OVERLAPPING RING FOR LOANS ---
                 calendarBuilders: CalendarBuilders(
                   markerBuilder: (context, day, events) {
-                    if (_hasPendingLoan(day)) {
+                    bool hasPendingLoan = allExpenses.any((tx) => isSameDay(tx.date, day) && tx.category == 'Loan' && tx.isCleared == false);
+                    
+                    if (hasPendingLoan) {
                       return Center(
                         child: Container(
-                          width: 42, // Large enough to encircle the date
+                          width: 42,
                           height: 42,
                           decoration: BoxDecoration(
                             shape: BoxShape.circle,
