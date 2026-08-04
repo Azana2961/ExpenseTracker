@@ -1,0 +1,72 @@
+name: frontend
+description: "Karcha Yar - A premium, offline-first expense tracker app."
+
+# The following line prevents the package from being accidentally published to
+# pub.dev using `flutter pub publish`. This is preferred for private packages.
+publish_to: "none" # Remove this line if you wish to publish to pub.dev
+
+# --- APP VERSIONING ---
+# version: 1.0.0+1 represents (Major.Minor.Patch+BuildNumber)
+# Every time you upload a new version to the Google Play Store, you MUST increase
+# the number after the "+" (e.g., to 1.0.0+2).
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.11.5
+
+# --- DEPENDENCIES (THE ENGINES POWERING YOUR APP) ---
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # --- CORE ARCHITECTURE ---
+  # go_router: Handles all the advanced screen navigation and keeps your bottom navigation bar alive.
+  go_router: ^17.3.0
+  # provider: The "Brain" of the app. It listens to the database and instantly refreshes the UI when data changes.
+  provider: ^6.1.2
+
+  # --- LOCAL OFFLINE STORAGE ---
+  # sqflite: The main vault. Creates the local SQL tables to save expenses permanently on the phone.
+  sqflite: ^2.3.0
+  # path_provider: Helps SQLite find the secure, hidden folders on Android/iOS to store the database file.
+  path_provider: ^2.1.2
+  # shared_preferences: The quick cache. Saves lightweight settings like your 30,000 Rs budget limit and quick-add shortcuts.
+  shared_preferences: ^2.2.3
+
+  # --- UI, CHARTS & VISUALS ---
+  # table_calendar: Builds the interactive monthly view on the Dashboard with the custom orange rings for pending loans.
+  table_calendar: ^3.2.0
+  # fl_chart: Powers the beautiful Category Pie Charts and the Daily Average Bar Charts on the Analytics screen.
+  fl_chart: ^1.2.0
+  # intl: Formats all your raw DateTimes into readable text (like "June 2026") and handles currency formatting.
+  intl: ^0.20.2
+  # cupertino_icons: Provides standard iOS-style icons just in case you need them.
+  cupertino_icons: ^1.0.8
+
+# --- DEVELOPER TOOLS ---
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+
+  # flutter_lints: Provides warnings in VS Code if you write messy or non-standard Flutter code.
+  flutter_lints: ^6.0.0
+
+  # flutter_launcher_icons: The magic script that takes your 1 image and crops it into all the required Android/iOS app icon sizes.
+  flutter_launcher_icons: ^0.13.1
+
+# --- APP ICON CONFIGURATION ---
+# This tells the flutter_launcher_icons package exactly how to build your custom app icon.
+flutter_icons:
+  android: "launcher_icon"
+  ios: true
+  image_path: "assets/icon.png" # Points to the logo you saved earlier!
+  remove_alpha_ios: true
+
+flutter:
+  # Ensures that the standard Material Design fonts and icons are included.
+  uses-material-design: true
+
+  # --- ASSETS (IMAGES & FONTS) ---
+  # To add custom images, icons, or logos to your app, they must be registered here.
+  assets:
+    - assets/icon.png
