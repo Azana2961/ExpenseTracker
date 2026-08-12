@@ -5,7 +5,7 @@ import 'dart:convert';
 class SettingsProvider with ChangeNotifier {
   double _monthlyBudget = 15000.0;
   double _idealDailySpend = 500.0;
-  List<String> _categories = ['Food', 'Transport', 'Laundry', 'Supplies', 'Bills', 'Loan', 'Other'];
+  List<String> _categories = ['Food', 'Transport', 'Laundry', 'Supplies', 'Bills', 'Loan', 'Borrow', 'Other'];
   List<Map<String, dynamic>> _quickAdds = [
     {'label': '🍳 Breakfast', 'amount': '240', 'category': 'Food', 'colorValue': Colors.orange.value},
     {'label': '☕ Tea & Snack', 'amount': '80', 'category': 'Food', 'colorValue': Colors.brown.value},
@@ -31,6 +31,7 @@ class SettingsProvider with ChangeNotifier {
     if (savedCats != null) {
       _categories = savedCats;
       if (!_categories.contains('Loan')) _categories.add('Loan');
+      if (!_categories.contains('Borrow')) _categories.add('Borrow');
     }
 
     final savedQuick = prefs.getString('quickAdds');
@@ -57,7 +58,6 @@ class SettingsProvider with ChangeNotifier {
     await prefs.setStringList('categories', cats);
     await prefs.setString('quickAdds', json.encode(quicks));
 
-    // This is the magic line that forces Dashboard & Analytics to instantly update!
     notifyListeners(); 
   }
 }

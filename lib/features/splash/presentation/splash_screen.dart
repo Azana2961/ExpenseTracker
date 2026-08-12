@@ -70,7 +70,7 @@ class _SplashScreenState extends State<SplashScreen>
 
               // App Name
               const Text(
-                'Karcha Yar',
+                'Kharcha Yar',
                 style: TextStyle(
                   fontSize: 42,
                   fontWeight: FontWeight.bold,

@@ -6,9 +6,9 @@ import '../../setup/providers/settings_provider.dart';
 import '../models/expense_model.dart';
 
 class ExpenseScreen extends StatefulWidget {
-  final DateTime? selectedDate;
+  final DateTime? initialDate;
 
-  const ExpenseScreen({super.key, this.selectedDate});
+  const ExpenseScreen({super.key, this.initialDate});
 
   @override
   State<ExpenseScreen> createState() => _ExpenseScreenState();
@@ -30,7 +30,6 @@ class _ExpenseScreenState extends State<ExpenseScreen> {
     super.dispose();
   }
 
-  // Added 'async' here to wait for the database
   Future<void> _saveExpense(
     String category,
     String amountStr,
@@ -41,21 +40,24 @@ class _ExpenseScreenState extends State<ExpenseScreen> {
     final double? amount = double.tryParse(amountStr);
     if (amount == null) return; // Prevent saving if amount is invalid
 
-    final targetDate = widget.selectedDate ?? DateTime.now();
+    final targetDate = widget.initialDate ?? DateTime.now();
+
+    // RULE FOR DEBTS: 
+    // - Borrow means you owe someone (unpaid debt). It starts as false (isCleared = false) to show the RED ring.
+    // - Loan means you gave someone money. It starts as false (isCleared = false) to show the GREEN ring.
+    bool initialClearedStatus = true;
+    if (category == 'Borrow' || category == 'Loan') {
+      initialClearedStatus = false;
+    }
 
     // 1. Create the Database Record
     final newExpense = ExpenseModel(
-      id: DateTime.now().millisecondsSinceEpoch
-          .toString(), // Unique ID based on exact millisecond
+      id: DateTime.now().millisecondsSinceEpoch.toString(), // Unique ID based on exact millisecond
       date: targetDate,
-      label: description.isNotEmpty
-          ? description
-          : category, // Fallback to category if no desc
+      label: description.isNotEmpty ? description : category, // Fallback to category if no desc
       amount: amount,
       category: category,
-      isCleared: category == 'Loan'
-          ? false
-          : true, // Auto-mark Loans as pending
+      isCleared: initialClearedStatus, // Applies the Borrow/Loan logic
     );
 
     try {
@@ -75,11 +77,14 @@ class _ExpenseScreenState extends State<ExpenseScreen> {
       // Clear any existing popups so they don't get stuck in a queue
       ScaffoldMessenger.of(context).clearSnackBars();
 
+      final bool isSpecial = category == 'Borrow' || category == 'Loan';
+      final Color snackColor = isSpecial ? (category == 'Loan' ? Colors.green.shade700 : Colors.red.shade700) : primaryTeal;
+
       // Show the new premium Top-Snackbar
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            'Successfully logged Rs $amountStr for $category!',
+            isSpecial ? '$category Logged!' : 'Successfully logged Rs $amountStr for $category!',
             textAlign: TextAlign.center,
             style: const TextStyle(
               fontWeight: FontWeight.bold,
@@ -87,23 +92,16 @@ class _ExpenseScreenState extends State<ExpenseScreen> {
               color: Colors.white,
             ),
           ),
-          backgroundColor: primaryTeal,
+          backgroundColor: snackColor,
           behavior: SnackBarBehavior.floating,
-          duration: const Duration(
-            milliseconds: 1200,
-          ), // Extremely fast (1.2 seconds)
-          dismissDirection:
-              DismissDirection.up, // Allows you to swipe it away upwards
+          duration: const Duration(milliseconds: 1200), // Extremely fast (1.2 seconds)
+          dismissDirection: DismissDirection.up, // Allows you to swipe it away upwards
           margin: EdgeInsets.only(
-            bottom:
-                MediaQuery.of(context).size.height -
-                180, // Pushes it securely to the top
+            bottom: MediaQuery.of(context).size.height - 180, // Pushes it securely to the top
             left: 20,
             right: 20,
           ),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(30),
-          ), // Pill shape
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)), // Pill shape
           elevation: 6,
         ),
       );
@@ -135,7 +133,7 @@ class _ExpenseScreenState extends State<ExpenseScreen> {
       _selectedCategory = categories.first;
     }
 
-    final DateTime targetDate = widget.selectedDate ?? DateTime.now();
+    final DateTime targetDate = widget.initialDate ?? DateTime.now();
     final String formattedDate = DateFormat('EEEE, MMMM d').format(targetDate);
 
     return Scaffold(
@@ -166,38 +164,40 @@ class _ExpenseScreenState extends State<ExpenseScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
-              'Quick Add',
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-                color: Colors.black87,
+            if (quickAdds.isNotEmpty) ...[
+              const Text(
+                'Quick Add',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.black87,
+                ),
               ),
-            ),
-            const SizedBox(height: 12),
-            GridView.builder(
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: 2,
-                crossAxisSpacing: 12,
-                mainAxisSpacing: 12,
-                childAspectRatio: 1.6,
+              const SizedBox(height: 12),
+              GridView.builder(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: 2,
+                  crossAxisSpacing: 12,
+                  mainAxisSpacing: 12,
+                  childAspectRatio: 1.6,
+                ),
+                itemCount: quickAdds.length,
+                itemBuilder: (context, index) {
+                  final item = quickAdds[index];
+                  return _buildQuickAddBtn(
+                    item['label'],
+                    item['amount'].toString(),
+                    item['category'],
+                    Color(item['colorValue']),
+                  );
+                },
               ),
-              itemCount: quickAdds.length,
-              itemBuilder: (context, index) {
-                final item = quickAdds[index];
-                return _buildQuickAddBtn(
-                  item['label'],
-                  item['amount'].toString(),
-                  item['category'],
-                  Color(item['colorValue']),
-                );
-              },
-            ),
-            const SizedBox(height: 32),
-            const Divider(color: Colors.black12),
-            const SizedBox(height: 24),
+              const SizedBox(height: 32),
+              const Divider(color: Colors.black12),
+              const SizedBox(height: 24),
+            ],
 
             const Text(
               'Manual Entry',

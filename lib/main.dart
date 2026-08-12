@@ -1,25 +1,27 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'package:provider/provider.dart'; // Added Provider package
+import 'package:provider/provider.dart';
 import 'features/splash/presentation/splash_screen.dart';
 import 'features/dashboard/presentation/dashboard_screen.dart';
 import 'features/expenses/presentation/expense_screen.dart';
 import 'features/analytics/presentation/analytics_screen.dart';
 import 'features/setup/presentation/setup_screen.dart';
 import 'features/expenses/providers/expense_provider.dart'; 
-import 'features/setup/providers/settings_provider.dart'; // 1. Import the new provider
+import 'features/setup/providers/settings_provider.dart'; 
 
-void main() {
+import 'core/services/notification_service.dart';
+
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await NotificationService().init();
+  
   runApp(
-    // We wrap the entire app in a MultiProvider so the "Brain" is accessible globally!
     MultiProvider(
       providers: [
         ChangeNotifierProvider(
-          // As soon as the app starts, we create the provider AND load the database history!
           create: (_) => ExpenseProvider()..loadExpenses(),
         ),
         ChangeNotifierProvider(
-          // 2. Add the SettingsProvider here!
           create: (_) => SettingsProvider(),
         ),
       ],
@@ -28,7 +30,6 @@ void main() {
   );
 }
 
-// Custom widget to safely animate tabs without duplicating GlobalKeys
 class FadeIndexedStack extends StatefulWidget {
   final int index;
   final List<Widget> children;
@@ -94,7 +95,6 @@ class ScaffoldWithNavBar extends StatelessWidget {
         selectedIndex: navigationShell.currentIndex,
         onDestinationSelected: (index) {
           if (index == 1) {
-            // Force "Today" when tapping the bottom nav Add button
             context.go('/expense', extra: DateTime.now());
           } else {
             navigationShell.goBranch(
@@ -130,7 +130,7 @@ final GoRouter _router = GoRouter(
       },
       branches: [
         StatefulShellBranch(routes: [GoRoute(path: '/dashboard', builder: (context, state) => const DashboardScreen())]),
-        StatefulShellBranch(routes: [GoRoute(path: '/expense', builder: (context, state) => ExpenseScreen(selectedDate: state.extra as DateTime?))]),
+        StatefulShellBranch(routes: [GoRoute(path: '/expense', builder: (context, state) => ExpenseScreen(initialDate: state.extra as DateTime?))]), // Fixed the initialDate parameter
         StatefulShellBranch(routes: [GoRoute(path: '/analytics', builder: (context, state) => const AnalyticsScreen())]),
         StatefulShellBranch(routes: [GoRoute(path: '/setup', builder: (context, state) => const SetupScreen())]),
       ],
@@ -138,13 +138,30 @@ final GoRouter _router = GoRouter(
   ],
 );
 
-class HostelExpenseApp extends StatelessWidget {
+class HostelExpenseApp extends StatefulWidget {
   const HostelExpenseApp({super.key});
+
+  @override
+  State<HostelExpenseApp> createState() => _HostelExpenseAppState();
+}
+
+class _HostelExpenseAppState extends State<HostelExpenseApp> {
+  @override
+  void initState() {
+    super.initState();
+    _setupNotifications();
+  }
+
+  Future<void> _setupNotifications() async {
+    final notificationService = NotificationService();
+    await notificationService.requestPermissions();
+    await notificationService.scheduleDailyNotifications();
+  }
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp.router(
-      title: 'Hostel Expense Tracker',
+      title: 'Kharcha Yar',
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF2EC4B6)),
         scaffoldBackgroundColor: Colors.grey.shade50,

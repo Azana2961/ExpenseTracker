@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/settings_provider.dart';
+import '../../../core/services/notification_service.dart';
 
 class SetupScreen extends StatefulWidget {
   const SetupScreen({super.key});
@@ -21,7 +22,6 @@ class _SetupScreenState extends State<SetupScreen> {
   @override
   void initState() {
     super.initState();
-    // Load the initial values from the provider into the UI
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final provider = Provider.of<SettingsProvider>(context, listen: false);
       setState(() {
@@ -42,12 +42,45 @@ class _SetupScreenState extends State<SetupScreen> {
     );
   }
 
-  void _showManageCategoriesDialog() {
+  void _showCategoryEditorDialog() {
     final TextEditingController catController = TextEditingController();
+
     showDialog(
       context: context,
-      builder: (context) => StatefulBuilder(
-        builder: (context, setDialogState) {
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('New Category'),
+        content: TextField(
+          controller: catController,
+          decoration: const InputDecoration(labelText: 'Category Name'),
+          autofocus: true,
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(dialogContext), child: const Text('Cancel')),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: primaryTeal, foregroundColor: Colors.white),
+            onPressed: () {
+              final text = catController.text.trim();
+              if (text.isNotEmpty && !_categories.contains(text)) {
+                setState(() => _categories.add(text));
+                _saveData();
+                Navigator.pop(dialogContext);
+              }
+            },
+            child: const Text('Save'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showManageCategoriesDialog() {
+    // Use a local list copy that the dialog owns, synced back on every change
+    List<String> dialogCats = List.from(_categories);
+
+    showDialog(
+      context: context,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (dialogContext, setDialogState) {
           return AlertDialog(
             title: const Text('Manage Categories', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
             content: SizedBox(
@@ -55,31 +88,14 @@ class _SetupScreenState extends State<SetupScreen> {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Row(
-                    children: [
-                      Expanded(child: TextField(controller: catController, decoration: const InputDecoration(hintText: 'New Category'))),
-                      IconButton(
-                        icon: Icon(Icons.add_circle, color: primaryTeal),
-                        onPressed: () {
-                          if (catController.text.isNotEmpty && !_categories.contains(catController.text)) {
-                            setState(() => _categories.add(catController.text));
-                            _saveData();
-                            setDialogState(() {});
-                            catController.clear();
-                          }
-                        },
-                      )
-                    ],
-                  ),
-                  const SizedBox(height: 16),
                   ConstrainedBox(
-                    constraints: const BoxConstraints(maxHeight: 200),
+                    constraints: const BoxConstraints(maxHeight: 250),
                     child: ListView.builder(
                       shrinkWrap: true,
-                      itemCount: _categories.length,
+                      itemCount: dialogCats.length,
                       itemBuilder: (context, index) {
-                        final catName = _categories[index];
-                        final isBuiltIn = catName == 'Loan'; // Protect the Loan category
+                        final catName = dialogCats[index];
+                        final isBuiltIn = catName == 'Loan' || catName == 'Borrow';
 
                         return ListTile(
                           title: Text(catName, style: TextStyle(fontWeight: isBuiltIn ? FontWeight.bold : FontWeight.normal)),
@@ -88,10 +104,10 @@ class _SetupScreenState extends State<SetupScreen> {
                               : IconButton(
                                   icon: const Icon(Icons.delete_outline, color: Colors.red),
                                   onPressed: () {
-                                    if (_categories.length > 1) {
-                                      setState(() => _categories.removeAt(index));
+                                    if (dialogCats.length > 1) {
+                                      setDialogState(() => dialogCats.removeAt(index));
+                                      setState(() => _categories = List.from(dialogCats));
                                       _saveData();
-                                      setDialogState(() {});
                                     }
                                   },
                                 ),
@@ -99,12 +115,21 @@ class _SetupScreenState extends State<SetupScreen> {
                       },
                     ),
                   ),
+                  const Divider(),
+                  ListTile(
+                    onTap: () {
+                      Navigator.pop(dialogContext);
+                      _showCategoryEditorDialog();
+                    },
+                    leading: Icon(Icons.add_circle, color: primaryTeal),
+                    title: Text('Create New Category', style: TextStyle(fontWeight: FontWeight.bold, color: primaryTeal)),
+                  ),
                 ],
               ),
             ),
-            actions: [TextButton(onPressed: () => Navigator.pop(context), child: const Text('Done'))],
+            actions: [TextButton(onPressed: () => Navigator.pop(dialogContext), child: const Text('Close'))],
           );
-        }
+        },
       ),
     );
   }
@@ -113,13 +138,17 @@ class _SetupScreenState extends State<SetupScreen> {
     final Map<String, dynamic>? item = index != null ? _quickAdds[index] : null;
 
     final TextEditingController labelCtrl = TextEditingController(text: item?['label'] ?? '');
-    final TextEditingController amountCtrl = TextEditingController(text: item?['amount'] ?? '');
-    String newCat = (item != null && _categories.contains(item['category'])) ? item['category'] : _categories.first;
+    final TextEditingController amountCtrl = TextEditingController(text: item?['amount']?.toString() ?? '');
+    // Fallback to first available category safely
+    final List<String> availableCats = _categories.isNotEmpty ? _categories : ['Other'];
+    String newCat = (item != null && availableCats.contains(item['category']))
+        ? item['category']
+        : availableCats.first;
 
     showDialog(
       context: context,
-      builder: (context) => StatefulBuilder( 
-        builder: (context, setDialogState) {
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (dialogContext, setDialogState) {
           return AlertDialog(
             title: Text(index != null ? 'Edit Shortcut' : 'New Shortcut'),
             content: Column(
@@ -127,11 +156,15 @@ class _SetupScreenState extends State<SetupScreen> {
               children: [
                 TextField(controller: labelCtrl, decoration: const InputDecoration(labelText: 'Label')),
                 const SizedBox(height: 12),
-                TextField(controller: amountCtrl, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'Amount (Rs)')),
+                TextField(
+                  controller: amountCtrl,
+                  keyboardType: TextInputType.number,
+                  decoration: const InputDecoration(labelText: 'Amount (Rs)'),
+                ),
                 const SizedBox(height: 12),
                 DropdownButtonFormField<String>(
-                  value: newCat,
-                  items: _categories.map((c) => DropdownMenuItem(value: c, child: Text(c))).toList(),
+                  initialValue: newCat,
+                  items: availableCats.map((c) => DropdownMenuItem(value: c, child: Text(c))).toList(),
                   onChanged: (val) => setDialogState(() => newCat = val!),
                 ),
               ],
@@ -143,26 +176,28 @@ class _SetupScreenState extends State<SetupScreen> {
                   onPressed: () {
                     setState(() => _quickAdds.removeAt(index));
                     _saveData();
-                    Navigator.pop(context);
-                  }, 
-                  child: const Text('Delete', style: TextStyle(color: Colors.red))
+                    Navigator.pop(dialogContext);
+                  },
+                  child: const Text('Delete', style: TextStyle(color: Colors.red)),
                 ),
               Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
+                  TextButton(onPressed: () => Navigator.pop(dialogContext), child: const Text('Cancel')),
                   ElevatedButton(
                     style: ElevatedButton.styleFrom(backgroundColor: primaryTeal, foregroundColor: Colors.white),
                     onPressed: () {
-                      if (labelCtrl.text.isNotEmpty && amountCtrl.text.isNotEmpty) {
+                      final label = labelCtrl.text.trim();
+                      final amount = amountCtrl.text.trim();
+                      if (label.isNotEmpty && amount.isNotEmpty) {
                         setState(() {
                           final newData = {
-                            'label': labelCtrl.text,
-                            'amount': amountCtrl.text,
+                            'label': label,
+                            'amount': amount,
                             'category': newCat,
-                            'colorValue': item != null ? item['colorValue'] : Colors.teal.value, 
+                            'colorValue': item != null ? item['colorValue'] : Colors.teal.toARGB32(),
                           };
-                          
+
                           if (index != null) {
                             _quickAdds[index] = newData;
                           } else {
@@ -170,8 +205,8 @@ class _SetupScreenState extends State<SetupScreen> {
                           }
                         });
                         _saveData();
+                        Navigator.pop(dialogContext);
                       }
-                      Navigator.pop(context);
                     },
                     child: const Text('Save'),
                   ),
@@ -179,7 +214,7 @@ class _SetupScreenState extends State<SetupScreen> {
               )
             ],
           );
-        }
+        },
       ),
     );
   }
@@ -187,8 +222,8 @@ class _SetupScreenState extends State<SetupScreen> {
   void _showManageQuickAddsDialog() {
     showDialog(
       context: context,
-      builder: (context) => StatefulBuilder(
-        builder: (context, setDialogState) {
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (dialogContext, setDialogState) {
           return AlertDialog(
             title: const Text('Manage Shortcuts', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
             content: SizedBox(
@@ -201,17 +236,20 @@ class _SetupScreenState extends State<SetupScreen> {
                     child: ListView.builder(
                       shrinkWrap: true,
                       itemCount: _quickAdds.length,
-                      itemBuilder: (context, index) {
+                      itemBuilder: (ctx, index) {
                         final item = _quickAdds[index];
-                        final color = Color(item['colorValue']);
+                        final color = Color(item['colorValue'] as int);
                         return ListTile(
-                          leading: CircleAvatar(backgroundColor: color.withValues(alpha: 0.2), child: Icon(Icons.bolt, color: color, size: 16)),
+                          leading: CircleAvatar(
+                            backgroundColor: color.withValues(alpha: 0.2),
+                            child: Icon(Icons.bolt, color: color, size: 16),
+                          ),
                           title: Text(item['label']),
                           subtitle: Text('Rs ${item['amount']} • ${item['category']}'),
                           trailing: IconButton(
                             icon: const Icon(Icons.edit, color: Colors.grey),
                             onPressed: () {
-                              Navigator.pop(context);
+                              Navigator.pop(dialogContext);
                               _showQuickAddEditorDialog(index: index);
                             },
                           ),
@@ -222,7 +260,7 @@ class _SetupScreenState extends State<SetupScreen> {
                   const Divider(),
                   ListTile(
                     onTap: () {
-                      Navigator.pop(context);
+                      Navigator.pop(dialogContext);
                       _showQuickAddEditorDialog();
                     },
                     leading: Icon(Icons.add_circle, color: primaryTeal),
@@ -232,10 +270,10 @@ class _SetupScreenState extends State<SetupScreen> {
               ),
             ),
             actions: [
-              TextButton(onPressed: () => Navigator.pop(context), child: const Text('Close')),
+              TextButton(onPressed: () => Navigator.pop(dialogContext), child: const Text('Close')),
             ],
           );
-        }
+        },
       ),
     );
   }
@@ -300,6 +338,21 @@ class _SetupScreenState extends State<SetupScreen> {
               title: const Text('Manage Quick Adds', style: TextStyle(fontWeight: FontWeight.w600)),
               subtitle: const Text('Edit or add shortcut buttons'),
               trailing: const Icon(Icons.chevron_right),
+            ),
+            const SizedBox(height: 12),
+            ListTile(
+              onTap: () {
+                NotificationService().showTestNotification();
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Test notification sent!')),
+                );
+              },
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              tileColor: Colors.blue.shade50,
+              leading: const Icon(Icons.notifications_active, color: Colors.blue),
+              title: const Text('Test Notification (Debug)', style: TextStyle(fontWeight: FontWeight.w600, color: Colors.blue)),
+              subtitle: const Text('Send a sample notification instantly'),
+              trailing: const Icon(Icons.chevron_right, color: Colors.blue),
             ),
             const SizedBox(height: 40),
 

@@ -42,6 +42,9 @@ dependencies:
   intl: ^0.20.2
   # cupertino_icons: Provides standard iOS-style icons just in case you need them.
   cupertino_icons: ^1.0.8
+  flutter_local_notifications: ^22.3.0
+  timezone: ^0.11.1
+  image: ^4.9.1
 
 # --- DEVELOPER TOOLS ---
 dev_dependencies:
