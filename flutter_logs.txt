@@ -1,0 +1,29 @@
+Showing AC2003 logs:
+I/flutter (25607): [IMPORTANT:flutter/shell/platform/android/android_context_vk_impeller.cc(62)] Using the Impeller rendering backend (Vulkan).
+I/flutter (25607): [IMPORTANT:flutter/shell/platform/android/android_context_gl_impeller.cc(104)] Using the Impeller rendering backend (OpenGLES).
+E/flutter (25607): [ERROR:flutter/runtime/dart_vm_initializer.cc(40)] Unhandled Exception: PlatformException(invalid_icon, The resource @mipmap/ic_notification could not be found. Please make sure it has been added as a drawable resource to your Android head project., null, null)
+E/flutter (25607): #0      StandardMethodCodec.decodeEnvelope (package:flutter/src/services/message_codecs.dart:653)
+E/flutter (25607): #1      MethodChannel._invokeMethod (package:flutter/src/services/platform_channel.dart:366)
+E/flutter (25607): <asynchronous suspension>
+E/flutter (25607): #2      AndroidFlutterLocalNotificationsPlugin.initialize (package:flutter_local_notifications/src/platform_flutter_local_notifications.dart:167)
+E/flutter (25607): <asynchronous suspension>
+E/flutter (25607): #3      NotificationService.init (package:frontend/core/services/notification_service.dart:31)
+E/flutter (25607): <asynchronous suspension>
+E/flutter (25607): #4      main (package:frontend/main.dart:16)
+E/flutter (25607): <asynchronous suspension>
+E/flutter (25607): 
+I/flutter (26939): [IMPORTANT:flutter/shell/platform/android/android_context_vk_impeller.cc(62)] Using the Impeller rendering backend (Vulkan).
+I/flutter (26939): [IMPORTANT:flutter/shell/platform/android/android_context_gl_impeller.cc(104)] Using the Impeller rendering backend (OpenGLES).
+E/flutter (26939): [ERROR:flutter/runtime/dart_vm_initializer.cc(40)] Unhandled Exception: PlatformException(invalid_icon, The resource @mipmap/ic_notification could not be found. Please make sure it has been added as a drawable resource to your Android head project., null, null)
+E/flutter (26939): #0      StandardMethodCodec.decodeEnvelope (package:flutter/src/services/message_codecs.dart:653)
+E/flutter (26939): #1      MethodChannel._invokeMethod (package:flutter/src/services/platform_channel.dart:366)
+E/flutter (26939): <asynchronous suspension>
+E/flutter (26939): #2      AndroidFlutterLocalNotificationsPlugin.initialize (package:flutter_local_notifications/src/platform_flutter_local_notifications.dart:167)
+E/flutter (26939): <asynchronous suspension>
+E/flutter (26939): #3      NotificationService.init (package:frontend/core/services/notification_service.dart:31)
+E/flutter (26939): <asynchronous suspension>
+E/flutter (26939): #4      main (package:frontend/main.dart:16)
+E/flutter (26939): <asynchronous suspension>
+E/flutter (26939): 
+I/flutter (30246): [IMPORTANT:flutter/shell/platform/android/android_context_vk_impeller.cc(62)] Using the Impeller rendering backend (Vulkan).
+I/flutter (30246): [IMPORTANT:flutter/shell/platform/android/android_context_gl_impeller.cc(104)] Using the Impeller rendering backend (OpenGLES).

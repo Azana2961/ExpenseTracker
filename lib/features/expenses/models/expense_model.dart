@@ -5,6 +5,7 @@ class ExpenseModel {
   final double amount;
   final String category;
   final bool isCleared;
+  final double amountPaid; // How much has been repaid so far (Borrow/Loan only)
 
   ExpenseModel({
     required this.id,
@@ -12,8 +13,15 @@ class ExpenseModel {
     required this.label,
     required this.amount,
     required this.category,
-    this.isCleared = true, // Defaults to true unless it is a Pending Loan
+    this.isCleared = true, // Defaults to true unless it is a Pending Loan/Borrow
+    this.amountPaid = 0,
   });
+
+  /// How much is still owed / outstanding
+  double get remainingAmount => (amount - amountPaid).clamp(0.0, double.infinity);
+
+  /// True if this is a Borrow or Loan entry with partial or no payment
+  bool get isPartiallyPaid => amountPaid > 0 && amountPaid < amount;
 
   // Convert our Dart Object into a Map that SQLite can understand
   Map<String, dynamic> toMap() {
@@ -24,6 +32,7 @@ class ExpenseModel {
       'amount': amount,
       'category': category,
       'isCleared': isCleared ? 1 : 0, // SQLite uses 1 for true, 0 for false
+      'amountPaid': amountPaid,
     };
   }
 
@@ -35,7 +44,8 @@ class ExpenseModel {
       label: map['label'],
       amount: map['amount'],
       category: map['category'],
-      isCleared: map['isCleared'] == 1, 
+      isCleared: map['isCleared'] == 1,
+      amountPaid: (map['amountPaid'] as num?)?.toDouble() ?? 0,
     );
   }
 
@@ -47,6 +57,7 @@ class ExpenseModel {
     double? amount,
     String? category,
     bool? isCleared,
+    double? amountPaid,
   }) {
     return ExpenseModel(
       id: id ?? this.id,
@@ -55,6 +66,7 @@ class ExpenseModel {
       amount: amount ?? this.amount,
       category: category ?? this.category,
       isCleared: isCleared ?? this.isCleared,
+      amountPaid: amountPaid ?? this.amountPaid,
     );
   }
 }

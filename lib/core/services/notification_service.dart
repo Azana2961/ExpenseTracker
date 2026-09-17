@@ -1,4 +1,5 @@
 import 'dart:math';
+import 'dart:ui';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:timezone/data/latest_all.dart' as tz;
 import 'package:timezone/timezone.dart' as tz;
@@ -10,10 +11,10 @@ class NotificationService {
 
   final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin = FlutterLocalNotificationsPlugin();
 
-  Future<void> init() async {
+  Future<void> init({void Function(String?)? onDidReceiveNotificationResponse}) async {
     tz.initializeTimeZones();
 
-    const AndroidInitializationSettings initializationSettingsAndroid = AndroidInitializationSettings('@mipmap/ic_notification');
+    const AndroidInitializationSettings initializationSettingsAndroid = AndroidInitializationSettings('@mipmap/launcher_icon');
     
     // For iOS
     const DarwinInitializationSettings initializationSettingsIOS = DarwinInitializationSettings(
@@ -30,7 +31,9 @@ class NotificationService {
     await flutterLocalNotificationsPlugin.initialize(
       settings: initializationSettings,
       onDidReceiveNotificationResponse: (NotificationResponse notificationResponse) async {
-        // Handle notification tap
+        if (onDidReceiveNotificationResponse != null) {
+          onDidReceiveNotificationResponse(notificationResponse.payload);
+        }
       },
     );
   }
@@ -52,6 +55,7 @@ class NotificationService {
       channelDescription: 'Testing notifications',
       importance: Importance.max,
       priority: Priority.high,
+      color: Color(0xFF2EC4B6),
     );
     const NotificationDetails platformChannelSpecifics = NotificationDetails(android: androidPlatformChannelSpecifics);
     
@@ -180,6 +184,7 @@ class NotificationService {
       channelDescription: 'Daily reminders to log your expenses',
       importance: Importance.max,
       priority: Priority.high,
+      color: Color(0xFF2EC4B6),
     );
     const NotificationDetails platformChannelSpecifics = NotificationDetails(android: androidPlatformChannelSpecifics);
     

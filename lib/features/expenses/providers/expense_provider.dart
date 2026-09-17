@@ -1,61 +1,146 @@
 import 'package:flutter/material.dart';
 import '../models/expense_model.dart';
+import '../models/repayment_model.dart';
 import '../../../core/database/database_helper.dart';
 
 class ExpenseProvider with ChangeNotifier {
-  // This is the active memory cache. It holds all transactions while the app is open.
-  List<ExpenseModel> _expenses = [];
+  // ── In-memory caches ──────────────────────────────────────────────────────
+  List<ExpenseModel>   _expenses   = [];
+  List<RepaymentModel> _repayments = [];
 
-  // A getter to allow the UI to read the list
-  List<ExpenseModel> get expenses => _expenses;
+  List<ExpenseModel>   get expenses   => _expenses;
+  List<RepaymentModel> get repayments => _repayments;
 
-  // 1. INITIAL LOAD: Fetch everything from the hard drive when the app starts
+  // ── Helpers ───────────────────────────────────────────────────────────────
+
+  /// All repayments that belong to a specific parent expense.
+  List<RepaymentModel> repaymentsFor(String parentId) =>
+      _repayments.where((r) => r.parentId == parentId).toList();
+
+  /// Total amount repaid so far for a parent (derived from repayment records).
+  double totalRepaidFor(String parentId) =>
+      repaymentsFor(parentId).fold(0.0, (sum, r) => sum + r.amount);
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  //  LOAD
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  /// Fetch both expenses AND repayments from disk on app start.
   Future<void> loadExpenses() async {
     try {
-      _expenses = await DatabaseHelper.instance.getAllExpenses();
-      notifyListeners(); 
+      _expenses   = await DatabaseHelper.instance.getAllExpenses();
+      _repayments = await DatabaseHelper.instance.getAllRepayments();
+      notifyListeners();
     } catch (e) {
-      debugPrint("DB Error Loading: $e");
+      debugPrint('DB Error Loading: $e');
     }
   }
 
-  // 2. ADD EXPENSE: Save to hard drive AND add to active memory
+  // ═══════════════════════════════════════════════════════════════════════════
+  //  EXPENSE CRUD
+  // ═══════════════════════════════════════════════════════════════════════════
+
   Future<void> addExpense(ExpenseModel expense) async {
     try {
       await DatabaseHelper.instance.insertExpense(expense);
-      _expenses = [expense, ..._expenses]; // Force memory refresh
-      notifyListeners(); 
+      _expenses = [expense, ..._expenses];
+      notifyListeners();
     } catch (e) {
-      debugPrint("DB Error Adding: $e");
-      rethrow; // Pass error to the UI
+      debugPrint('DB Error Adding: $e');
+      rethrow;
     }
   }
 
-  // 3. UPDATE EXPENSE: Update the hard drive AND the memory
   Future<void> updateExpense(ExpenseModel expense) async {
     try {
       await DatabaseHelper.instance.updateExpense(expense);
       final index = _expenses.indexWhere((e) => e.id == expense.id);
       if (index != -1) {
         _expenses[index] = expense;
-        _expenses = [..._expenses]; // Force memory refresh
+        _expenses = [..._expenses];
         notifyListeners();
       }
     } catch (e) {
-      debugPrint("DB Error Updating: $e");
+      debugPrint('DB Error Updating: $e');
       rethrow;
     }
   }
 
-  // 4. DELETE EXPENSE: Remove from hard drive AND memory
   Future<void> deleteExpense(String id) async {
     try {
-      await DatabaseHelper.instance.deleteExpense(id);
+      await DatabaseHelper.instance.deleteExpense(id); // also deletes repayments
       _expenses.removeWhere((e) => e.id == id);
-      _expenses = [..._expenses]; // Force memory refresh
+      _repayments.removeWhere((r) => r.parentId == id);
+      _expenses   = [..._expenses];
+      _repayments = [..._repayments];
       notifyListeners();
     } catch (e) {
-      debugPrint("DB Error Deleting: $e");
+      debugPrint('DB Error Deleting: $e');
+      rethrow;
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  //  REPAYMENT CRUD
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  /// Record a new payment event on [repayment.date].
+  /// Also updates the parent expense's amountPaid + isCleared fields.
+  Future<void> addRepayment(RepaymentModel repayment) async {
+    try {
+      // 1. Persist repayment record
+      await DatabaseHelper.instance.insertRepayment(repayment);
+      _repayments = [repayment, ..._repayments];
+
+      // 2. Re-calculate amountPaid on the parent expense from ALL repayments
+      final parentIdx = _expenses.indexWhere((e) => e.id == repayment.parentId);
+      if (parentIdx != -1) {
+        final parent = _expenses[parentIdx];
+        final newAmountPaid = totalRepaidFor(repayment.parentId); // already includes new entry
+        final nowCleared   = newAmountPaid >= parent.amount;
+
+        final updated = parent.copyWith(
+          amountPaid: newAmountPaid,
+          isCleared:  nowCleared,
+        );
+        await DatabaseHelper.instance.updateExpense(updated);
+        _expenses[parentIdx] = updated;
+        _expenses = [..._expenses];
+      }
+
+      notifyListeners();
+    } catch (e) {
+      debugPrint('DB Error Adding Repayment: $e');
+      rethrow;
+    }
+  }
+
+  /// Delete a single repayment and recalculate the parent's amountPaid.
+  Future<void> deleteRepayment(String repaymentId) async {
+    try {
+      final repayment = _repayments.firstWhere((r) => r.id == repaymentId);
+      await DatabaseHelper.instance.deleteRepayment(repaymentId);
+      _repayments.removeWhere((r) => r.id == repaymentId);
+      _repayments = [..._repayments];
+
+      // Recalculate parent
+      final parentIdx = _expenses.indexWhere((e) => e.id == repayment.parentId);
+      if (parentIdx != -1) {
+        final parent       = _expenses[parentIdx];
+        final newAmountPaid = totalRepaidFor(repayment.parentId);
+        final nowCleared   = newAmountPaid >= parent.amount;
+        final updated = parent.copyWith(
+          amountPaid: newAmountPaid,
+          isCleared:  nowCleared,
+        );
+        await DatabaseHelper.instance.updateExpense(updated);
+        _expenses[parentIdx] = updated;
+        _expenses = [..._expenses];
+      }
+
+      notifyListeners();
+    } catch (e) {
+      debugPrint('DB Error Deleting Repayment: $e');
       rethrow;
     }
   }

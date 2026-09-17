@@ -18,6 +18,40 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
   
   String? _selectedMonthName;
 
+  Widget _buildInfoBox(
+    String title,
+    String amount,
+    Color bgColor,
+    Color textColor,
+  ) {
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 12),
+      decoration: BoxDecoration(
+        color: bgColor,
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(title,
+              style: TextStyle(
+                color: textColor.withValues(alpha: 0.8),
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+              )),
+          const SizedBox(height: 6),
+          Text(
+            amount,
+            style: TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: 16,
+                color: textColor),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final provider = context.watch<ExpenseProvider>();
@@ -35,9 +69,17 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
       'date': DateTime(DateTime.now().year, DateTime.now().month, 1),
     };
 
+    final allRepayments = provider.repayments;
+
+    // 1. Add origin transactions
     for (var tx in allExpenses) {
-      if (tx.category == 'Borrow' && !tx.isCleared) continue;
-      if (tx.category == 'Loan' && tx.isCleared) continue;
+      double contribution = 0.0;
+      if (tx.category == 'Borrow') {
+        contribution = 0.0; 
+      } else {
+        contribution = tx.amount;
+      }
+      if (contribution == 0) continue; 
 
       String monthKey = DateFormat('MMMM yyyy').format(tx.date);
       
@@ -49,10 +91,42 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
         };
       }
       
-      monthlyData[monthKey]!['totalSpent'] += tx.amount;
+      monthlyData[monthKey]!['totalSpent'] += contribution;
       
       Map<String, double> cats = monthlyData[monthKey]!['categories'];
-      cats[tx.category] = (cats[tx.category] ?? 0.0) + tx.amount;
+      cats[tx.category] = (cats[tx.category] ?? 0.0) + contribution;
+    }
+
+    // 2. Add repayments
+    for (var r in allRepayments) {
+      double contribution = 0.0;
+      if (r.category == 'Borrow') {
+        contribution = r.amount; // Cash out
+      } else if (r.category == 'Loan') {
+        contribution = -r.amount; // Cash in
+      }
+      if (contribution == 0) continue;
+
+      String monthKey = DateFormat('MMMM yyyy').format(r.date);
+      
+      if (!monthlyData.containsKey(monthKey)) {
+        monthlyData[monthKey] = {
+          'totalSpent': 0.0,
+          'categories': <String, double>{},
+          'date': DateTime(r.date.year, r.date.month, 1),
+        };
+      }
+      
+      monthlyData[monthKey]!['totalSpent'] += contribution;
+      
+      Map<String, double> cats = monthlyData[monthKey]!['categories'];
+      cats[r.category] = (cats[r.category] ?? 0.0) + contribution;
+    }
+
+    // Clean up negative/zero categories after refunds
+    for (var monthData in monthlyData.values) {
+      Map<String, double> cats = monthData['categories'];
+      cats.removeWhere((key, value) => value <= 0);
     }
 
     List<String> sortedMonths = monthlyData.keys.toList();
@@ -72,6 +146,10 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
     int daysPassed = isCurrentMonth ? DateTime.now().day : daysInMonth;
     
     double avgDaily = daysPassed > 0 ? totalSpent / daysPassed : 0.0;
+    
+    double remainingBudget = budgetLimit - totalSpent;
+    int remainingDays = daysInMonth - (isCurrentMonth ? DateTime.now().day : daysInMonth);
+    double safeDailySpend = remainingDays > 0 ? (remainingBudget / remainingDays).clamp(0.0, double.infinity) : 0.0;
 
     final Map<String, Color> catColors = {
       'Food': primaryTeal,
@@ -168,6 +246,39 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
             const SizedBox(height: 32),
             const Divider(color: Colors.black12),
             const SizedBox(height: 20),
+
+            // Stats Row
+            Row(
+              children: [
+                Expanded(
+                  child: _buildInfoBox(
+                    'Avg Spent',
+                    'Rs ${avgDaily.toStringAsFixed(0)}',
+                    primaryTeal.withValues(alpha: 0.1),
+                    primaryTeal,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: _buildInfoBox(
+                    'Ideal Daily',
+                    'Rs ${idealDaily.toStringAsFixed(0)}',
+                    Colors.purple.withValues(alpha: 0.1),
+                    Colors.purple,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: _buildInfoBox(
+                    'Safe to Spend',
+                    'Rs ${safeDailySpend.toStringAsFixed(0)}',
+                    Colors.orange.withValues(alpha: 0.1),
+                    Colors.orange.shade800,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 32),
 
             const Text('Daily Average vs Ideal Limit', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.black54)),
             const SizedBox(height: 24),

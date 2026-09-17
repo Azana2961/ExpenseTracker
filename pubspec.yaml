@@ -28,6 +28,8 @@ dependencies:
   # --- LOCAL OFFLINE STORAGE ---
   # sqflite: The main vault. Creates the local SQL tables to save expenses permanently on the phone.
   sqflite: ^2.3.0
+  # path: Provides the join() helper used by sqflite to build the database file path.
+  path: ^1.9.0
   # path_provider: Helps SQLite find the secure, hidden folders on Android/iOS to store the database file.
   path_provider: ^2.1.2
   # shared_preferences: The quick cache. Saves lightweight settings like your 30,000 Rs budget limit and quick-add shortcuts.

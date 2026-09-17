@@ -13,7 +13,14 @@ import 'core/services/notification_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await NotificationService().init();
+  await NotificationService().init(
+    onDidReceiveNotificationResponse: (payload) {
+      // Small delay to ensure GoRouter is fully initialized before navigating
+      Future.delayed(const Duration(milliseconds: 100), () {
+        _router.go('/dashboard');
+      });
+    }
+  );
   
   runApp(
     MultiProvider(

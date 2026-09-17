@@ -54,16 +54,12 @@ class _SplashScreenState extends State<SplashScreen>
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               // Premium Icon Container
-              Container(
-                padding: const EdgeInsets.all(24),
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: Colors.white.withValues(alpha: 0.2),
-                ),
-                child: const Icon(
-                  Icons.account_balance_wallet_outlined,
-                  size: 80,
-                  color: Colors.white,
+              ClipRRect(
+                borderRadius: BorderRadius.circular(28),
+                child: Image.asset(
+                  'assets/icon.png',
+                  width: 120,
+                  height: 120,
                 ),
               ),
               const SizedBox(height: 24),

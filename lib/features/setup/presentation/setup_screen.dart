@@ -339,21 +339,6 @@ class _SetupScreenState extends State<SetupScreen> {
               subtitle: const Text('Edit or add shortcut buttons'),
               trailing: const Icon(Icons.chevron_right),
             ),
-            const SizedBox(height: 12),
-            ListTile(
-              onTap: () {
-                NotificationService().showTestNotification();
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Test notification sent!')),
-                );
-              },
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-              tileColor: Colors.blue.shade50,
-              leading: const Icon(Icons.notifications_active, color: Colors.blue),
-              title: const Text('Test Notification (Debug)', style: TextStyle(fontWeight: FontWeight.w600, color: Colors.blue)),
-              subtitle: const Text('Send a sample notification instantly'),
-              trailing: const Icon(Icons.chevron_right, color: Colors.blue),
-            ),
             const SizedBox(height: 40),
 
             SizedBox(
