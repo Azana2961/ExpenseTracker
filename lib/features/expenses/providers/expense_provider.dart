@@ -186,4 +186,55 @@ class ExpenseProvider with ChangeNotifier {
       rethrow;
     }
   }
+
+  /// mathematically nets out Borrows against Loans for the same person.
+  /// E.g. If you owe them 200 (Borrow) and they owe you 300 (Loan),
+  /// it fully repays the Borrow, and applies 200 towards the Loan.
+  Future<void> netSettleBeneficiary(String beneficiary) async {
+    try {
+      final activeLoans = _expenses.where((e) =>
+          e.beneficiary == beneficiary && e.category == 'Loan' && !e.isCleared).toList();
+      final activeBorrows = _expenses.where((e) =>
+          e.beneficiary == beneficiary && e.category == 'Borrow' && !e.isCleared).toList();
+
+      double sumLoans = activeLoans.fold(0.0, (sum, tx) => sum + tx.remainingAmount);
+      double sumBorrows = activeBorrows.fold(0.0, (sum, tx) => sum + tx.remainingAmount);
+
+      double overlap = sumLoans < sumBorrows ? sumLoans : sumBorrows;
+      if (overlap <= 0) return; // Nothing to net out
+
+      // Apply overlap to loans
+      double remainingToApplyToLoans = overlap;
+      for (final tx in activeLoans) {
+        if (remainingToApplyToLoans <= 0) break;
+        final amountToApply = tx.remainingAmount < remainingToApplyToLoans ? tx.remainingAmount : remainingToApplyToLoans;
+        final repayment = RepaymentModel.create(
+          parentId: tx.id,
+          category: 'Loan',
+          amount: amountToApply,
+          date: DateTime.now(),
+        );
+        await addRepayment(repayment);
+        remainingToApplyToLoans -= amountToApply;
+      }
+
+      // Apply overlap to borrows
+      double remainingToApplyToBorrows = overlap;
+      for (final tx in activeBorrows) {
+        if (remainingToApplyToBorrows <= 0) break;
+        final amountToApply = tx.remainingAmount < remainingToApplyToBorrows ? tx.remainingAmount : remainingToApplyToBorrows;
+        final repayment = RepaymentModel.create(
+          parentId: tx.id,
+          category: 'Borrow',
+          amount: amountToApply,
+          date: DateTime.now(),
+        );
+        await addRepayment(repayment);
+        remainingToApplyToBorrows -= amountToApply;
+      }
+    } catch (e) {
+      debugPrint('DB Error Net Settling: $e');
+      rethrow;
+    }
+  }
 }

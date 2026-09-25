@@ -498,6 +498,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     SnackBar(content: Text('Settled all debts with $b!')),
                   );
                 },
+                onPeopleTap: () => _showPeopleSheet(context, provider),
                 onLoanTap: () => _showLoanBorrowSheet(
                   context, 'Loan', allExpenses, provider, settings),
                 onBorrowTap: () => _showLoanBorrowSheet(
@@ -770,6 +771,252 @@ class _DashboardScreenState extends State<DashboardScreen> {
       },
     );
   }
+
+  void _showPeopleSheet(BuildContext context, ExpenseProvider provider) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => Container(
+        height: MediaQuery.of(context).size.height * 0.85,
+        decoration: BoxDecoration(
+          color: Theme.of(context).scaffoldBackgroundColor,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+        ),
+        child: Column(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Theme.of(context).cardColor,
+                borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+              ),
+              child: Column(
+                children: [
+                  Container(width: 40, height: 4, decoration: BoxDecoration(color: Colors.grey.withValues(alpha: 0.3), borderRadius: BorderRadius.circular(2))),
+                  const SizedBox(height: 16),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text('People', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+                      ElevatedButton.icon(
+                        icon: const Icon(Icons.add, size: 16),
+                        label: const Text('Add New'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF10B981),
+                          foregroundColor: Colors.white,
+                        ),
+                        onPressed: () {
+                          _showAddPersonDialog(context, provider);
+                        },
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+            Expanded(
+              child: Consumer<ExpenseProvider>(
+                builder: (context, currentProvider, child) {
+                  if (currentProvider.uniqueBeneficiaries.isEmpty) {
+                    return const Center(child: Text('No people added yet.'));
+                  }
+                  return ListView.builder(
+                    padding: const EdgeInsets.all(16),
+                    itemCount: currentProvider.uniqueBeneficiaries.length,
+                    itemBuilder: (ctx, i) {
+                      final person = currentProvider.uniqueBeneficiaries[i];
+                      final personExpenses = currentProvider.expenses.where((e) => e.beneficiary == person && !e.isCleared).toList();
+                      double net = 0;
+                      for (final e in personExpenses) {
+                        if (e.category == 'Loan') net += e.remainingAmount;
+                        if (e.category == 'Borrow') net -= e.remainingAmount;
+                      }
+                      
+                      return ListTile(
+                        leading: CircleAvatar(child: Text(person.isNotEmpty ? person[0].toUpperCase() : '?')),
+                        title: Text(person, style: const TextStyle(fontWeight: FontWeight.bold)),
+                        subtitle: Text(
+                          net > 0 ? 'Owes you Rs ${net.toStringAsFixed(0)}' :
+                          net < 0 ? 'You owe Rs ${net.abs().toStringAsFixed(0)}' : 'Settled',
+                          style: TextStyle(
+                            color: net > 0 ? Colors.green : net < 0 ? Colors.red : Colors.grey,
+                          ),
+                        ),
+                        onTap: () {
+                          Navigator.pop(ctx);
+                          _showPersonDetailsSheet(context, person, currentProvider);
+                        },
+                      );
+                    },
+                  );
+                },
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showAddPersonDialog(BuildContext context, ExpenseProvider provider) {
+    final controller = TextEditingController();
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Add New Person'),
+        content: TextField(
+          controller: controller,
+          decoration: const InputDecoration(labelText: 'Name', hintText: 'Enter name'),
+          autofocus: true,
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+          ElevatedButton(
+            onPressed: () {
+              if (controller.text.trim().isNotEmpty) {
+                final newExpense = ExpenseModel(
+                  id: DateTime.now().millisecondsSinceEpoch.toString(),
+                  date: DateTime.now(),
+                  label: 'Added Person',
+                  amount: 0,
+                  category: 'Loan',
+                  isCleared: true,
+                  beneficiary: controller.text.trim(),
+                );
+                provider.addExpense(newExpense);
+              }
+              Navigator.pop(ctx);
+            },
+            child: const Text('Add'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showPersonDetailsSheet(BuildContext context, String person, ExpenseProvider provider) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) {
+        return Container(
+          height: MediaQuery.of(context).size.height * 0.9,
+          decoration: BoxDecoration(
+            color: Theme.of(context).scaffoldBackgroundColor,
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+          ),
+          child: Column(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Theme.of(context).cardColor,
+                  borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+                ),
+                child: Column(
+                  children: [
+                    Container(width: 40, height: 4, decoration: BoxDecoration(color: Colors.grey.withValues(alpha: 0.3), borderRadius: BorderRadius.circular(2))),
+                    const SizedBox(height: 16),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text('$person Details', style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+                        IconButton(icon: const Icon(Icons.close), onPressed: () => Navigator.pop(ctx)),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+              Expanded(
+                child: Consumer<ExpenseProvider>(
+                  builder: (context, currentProvider, child) {
+                    final activeLoans = currentProvider.expenses.where((e) => e.beneficiary == person && e.category == 'Loan' && !e.isCleared).toList();
+                    final activeBorrows = currentProvider.expenses.where((e) => e.beneficiary == person && e.category == 'Borrow' && !e.isCleared).toList();
+                    
+                    double sumLoans = activeLoans.fold(0.0, (sum, tx) => sum + tx.remainingAmount);
+                    double sumBorrows = activeBorrows.fold(0.0, (sum, tx) => sum + tx.remainingAmount);
+                    double net = sumLoans - sumBorrows;
+
+                    return ListView(
+                      padding: const EdgeInsets.all(16),
+                      children: [
+                        Card(
+                          child: Padding(
+                            padding: const EdgeInsets.all(16),
+                            child: Column(
+                              children: [
+                                const Text('Net Balance', style: TextStyle(fontSize: 16)),
+                                const SizedBox(height: 8),
+                                Text(
+                                  net > 0 ? 'Owes you Rs ${net.toStringAsFixed(0)}' :
+                                  net < 0 ? 'You owe Rs ${net.abs().toStringAsFixed(0)}' : 'Settled',
+                                  style: TextStyle(
+                                    fontSize: 24,
+                                    fontWeight: FontWeight.bold,
+                                    color: net > 0 ? Colors.green : net < 0 ? Colors.red : Colors.grey,
+                                  ),
+                                ),
+                                if (net != 0) ...[
+                                  const SizedBox(height: 16),
+                                  ElevatedButton(
+                                    style: ElevatedButton.styleFrom(
+                                      minimumSize: const Size(double.infinity, 48),
+                                      backgroundColor: const Color(0xFF10B981),
+                                      foregroundColor: Colors.white,
+                                    ),
+                                    onPressed: () async {
+                                      await currentProvider.netSettleBeneficiary(person);
+                                      if (net > 0) {
+                                          // If net > 0, they still owe us, we can settle the rest via regular settle
+                                          await currentProvider.settleWithBeneficiary(person);
+                                      } else {
+                                          // If net < 0, we owe them, we can settle the rest
+                                          await currentProvider.settleWithBeneficiary(person);
+                                      }
+                                      if (context.mounted) {
+                                        ScaffoldMessenger.of(context).showSnackBar(
+                                          const SnackBar(content: Text('Balances settled!')),
+                                        );
+                                      }
+                                    },
+                                    child: const Text('Settle Up (Net Balances)'),
+                                  ),
+                                ]
+                              ],
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 24),
+                        const Text('Active Loans (They owe you)', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                        const SizedBox(height: 8),
+                        if (activeLoans.isEmpty) const Text('No active loans.'),
+                        ...activeLoans.map((tx) => ListTile(
+                          title: Text(tx.label),
+                          subtitle: Text('Remaining: Rs ${tx.remainingAmount.toStringAsFixed(0)}'),
+                          trailing: Text('Rs ${tx.amount.toStringAsFixed(0)}'),
+                        )),
+                        const SizedBox(height: 24),
+                        const Text('Active Borrows (You owe them)', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                        const SizedBox(height: 8),
+                        if (activeBorrows.isEmpty) const Text('No active borrows.'),
+                        ...activeBorrows.map((tx) => ListTile(
+                          title: Text(tx.label),
+                          subtitle: Text('Remaining: Rs ${tx.remainingAmount.toStringAsFixed(0)}'),
+                          trailing: Text('Rs ${tx.amount.toStringAsFixed(0)}'),
+                        )),
+                      ],
+                    );
+                  },
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -780,6 +1027,7 @@ class _SwipeableInfoCards extends StatefulWidget {
   final double budgetPercentage;
   final List<ExpenseModel> allExpenses;
   final void Function(String) onSettle;
+  final VoidCallback onPeopleTap;
   final VoidCallback onLoanTap;
   final VoidCallback onBorrowTap;
 
@@ -788,6 +1036,7 @@ class _SwipeableInfoCards extends StatefulWidget {
     required this.budgetPercentage,
     required this.allExpenses,
     required this.onSettle,
+    required this.onPeopleTap,
     required this.onLoanTap,
     required this.onBorrowTap,
   });
@@ -953,6 +1202,7 @@ class _SwipeableInfoCardsState extends State<_SwipeableInfoCards> {
 
   Widget _buildPeopleCard(Map<String, double> activePeople) {
     return GestureDetector(
+      onTap: widget.onPeopleTap,
       child: Container(
         padding: const EdgeInsets.fromLTRB(20, 18, 20, 18),
         decoration: BoxDecoration(
@@ -992,7 +1242,9 @@ class _SwipeableInfoCardsState extends State<_SwipeableInfoCards> {
                     ],
                   ),
                   const SizedBox(height: 8),
-                  if (activePeople.isEmpty)
+                  if (widget.allExpenses.where((e) => e.beneficiary != null).isEmpty)
+                    const Text('No People added', style: TextStyle(color: Color(0xFF92400E), fontSize: 15, fontWeight: FontWeight.w600))
+                  else if (activePeople.isEmpty)
                     const Text('No active debts 🎉', style: TextStyle(color: Color(0xFF92400E), fontSize: 15, fontWeight: FontWeight.w600))
                   else
                     ...activePeople.entries.take(3).map((e) {
