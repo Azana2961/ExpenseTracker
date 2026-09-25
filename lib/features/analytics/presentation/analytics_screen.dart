@@ -197,7 +197,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
             ),
             const SizedBox(height: 24),
 
-            const Text('Category Wise Spend', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.black54)),
+            Text('Category Wise Spend', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Theme.of(context).colorScheme.onSurface)),
             const SizedBox(height: 16),
             
             SizedBox(
@@ -206,7 +206,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
                 ? const Center(child: Text('No expenses recorded for this month.', style: TextStyle(color: Colors.grey)))
                 : PieChart(
                     PieChartData(
-                      sectionsSpace: 4,
+                      sectionsSpace: 0,
                       centerSpaceRadius: 40,
                       sections: categories.entries.toList().asMap().entries.map((entry) {
                         int idx = entry.key;
@@ -219,6 +219,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
                           title: 'Rs ${(catAmount / 1000).toStringAsFixed(1)}k',
                           radius: 50,
                           titleStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.white),
+                          borderSide: const BorderSide(color: Colors.white, width: 2),
                         );
                       }).toList(),
                     ),
@@ -272,7 +273,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
             ),
             const SizedBox(height: 32),
 
-            const Text('Last 7 Days', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.black54)),
+            Text('Last 7 Days', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Theme.of(context).colorScheme.onSurface)),
             const SizedBox(height: 24),
             SizedBox(
               height: 180,
