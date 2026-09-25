@@ -487,33 +487,28 @@ class _DashboardScreenState extends State<DashboardScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // 1 ── Wallet Row (Teal card + Loans/Borrows) ──────────────
-              _WalletRow(
+              // 1 ── Emerald Wallet Card ─────────────────────────────────
+              _WalletCard(
                 selectedDaySpent: selectedDaySpent,
                 budgetPercentage: budgetPercentage,
-                hasActiveLoan: hasActiveLoan,
-                hasActiveBorrow: hasActiveBorrow,
+              ),
+              const SizedBox(height: 16),
+
+              // 2 ── Swipeable Info Cards (People / Loans / Borrows) ─────
+              _SwipeableInfoCards(
+                allExpenses: allExpenses,
+                onSettle: (b) {
+                  provider.settleWithBeneficiary(b);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('Settled all debts with $b!')),
+                  );
+                },
                 onLoanTap: () => _showLoanBorrowSheet(
                   context, 'Loan', allExpenses, provider, settings),
                 onBorrowTap: () => _showLoanBorrowSheet(
                   context, 'Borrow', allExpenses, provider, settings),
               ),
               const SizedBox(height: 16),
-
-              // 2 ── Beneficiaries ───────────────────────────────────────────
-              if (provider.uniqueBeneficiaries.isNotEmpty) ...[
-                _BeneficiariesSection(
-                  uniqueBeneficiaries: provider.uniqueBeneficiaries,
-                  allExpenses: allExpenses,
-                  onSettle: (b) {
-                    provider.settleWithBeneficiary(b);
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text('Settled all debts with $b!')),
-                    );
-                  },
-                ),
-                const SizedBox(height: 16),
-              ],
 
               // 4 ── Date Navigation ────────────────────────────────────
               _DateNavRow(
@@ -783,239 +778,415 @@ class _DashboardScreenState extends State<DashboardScreen> {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
-//  WALLET ROW  (private widget)
+//  WALLET CARD  (Emerald Green)
 // ═══════════════════════════════════════════════════════════════════════════════
-class _WalletRow extends StatelessWidget {
+class _WalletCard extends StatelessWidget {
   final double selectedDaySpent;
   final double budgetPercentage;
-  final bool hasActiveLoan;
-  final bool hasActiveBorrow;
+
+  const _WalletCard({
+    required this.selectedDaySpent,
+    required this.budgetPercentage,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: [Color(0xFF10B981), Color(0xFF047857)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(24),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF10B981).withValues(alpha: 0.45),
+            blurRadius: 24,
+            offset: const Offset(0, 10),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(6),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.2),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: const Icon(Icons.today_outlined, color: Colors.white, size: 16),
+                  ),
+                  const SizedBox(width: 8),
+                  const Text(
+                    'Spent Today',
+                    style: TextStyle(color: Colors.white70, fontSize: 13, fontWeight: FontWeight.w500),
+                  ),
+                ],
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.18),
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: const Text('Daily', style: TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w600)),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          Text(
+            'Rs ${selectedDaySpent.toStringAsFixed(0)}',
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 38,
+              fontWeight: FontWeight.bold,
+              letterSpacing: -1,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            budgetPercentage > 0
+                ? '${(budgetPercentage * 100).toStringAsFixed(0)}% of monthly budget used'
+                : 'No budget set',
+            style: TextStyle(color: Colors.white.withValues(alpha: 0.75), fontSize: 12),
+          ),
+          const SizedBox(height: 16),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(10),
+            child: LinearProgressIndicator(
+              value: budgetPercentage.clamp(0.0, 1.0),
+              minHeight: 7,
+              backgroundColor: Colors.black.withValues(alpha: 0.15),
+              valueColor: AlwaysStoppedAnimation<Color>(
+                budgetPercentage > 0.9 ? Colors.redAccent.shade100 : Colors.white.withValues(alpha: 0.9),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+//  SWIPEABLE INFO CARDS  (People / Loans / Borrows)
+// ═══════════════════════════════════════════════════════════════════════════════
+class _SwipeableInfoCards extends StatefulWidget {
+  final List<ExpenseModel> allExpenses;
+  final void Function(String) onSettle;
   final VoidCallback onLoanTap;
   final VoidCallback onBorrowTap;
 
-  const _WalletRow({
-    required this.selectedDaySpent,
-    required this.budgetPercentage,
-    required this.hasActiveLoan,
-    required this.hasActiveBorrow,
+  const _SwipeableInfoCards({
+    required this.allExpenses,
+    required this.onSettle,
     required this.onLoanTap,
     required this.onBorrowTap,
   });
 
   @override
-  Widget build(BuildContext context) {
-    return Column(
-        children: [
-          // ── Full-width Teal "Spent" card ──────────────────────────────
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.all(22),
-            decoration: BoxDecoration(
-              gradient: const LinearGradient(
-                colors: [Color(0xFF2EC4B6), Color(0xFF22A89D)],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              ),
-              borderRadius: BorderRadius.circular(20),
-              boxShadow: [
-                BoxShadow(
-                  color: const Color(0xFF2EC4B6).withValues(alpha: 0.35),
-                  blurRadius: 20,
-                  offset: const Offset(0, 8),
-                ),
-              ],
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(6),
-                      decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: 0.2),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: const Icon(Icons.today_outlined,
-                          color: Colors.white, size: 16),
-                    ),
-                    const SizedBox(width: 8),
-                    const Text(
-                      'Spent',
-                      style: TextStyle(
-                        color: Colors.white70,
-                        fontSize: 13,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 14),
-                Text(
-                  'Rs ${selectedDaySpent.toStringAsFixed(0)}',
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 34,
-                    fontWeight: FontWeight.bold,
-                    letterSpacing: -0.5,
-                  ),
-                ),
-                const SizedBox(height: 16),
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(10),
-                  child: LinearProgressIndicator(
-                    value: budgetPercentage.clamp(0.0, 1.0),
-                    minHeight: 6,
-                    backgroundColor: Colors.black.withValues(alpha: 0.1),
-                    valueColor: AlwaysStoppedAnimation<Color>(
-                      budgetPercentage > 0.9
-                          ? Colors.redAccent
-                          : Colors.white.withValues(alpha: 0.9),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 12),
-
-          // ── Loans & Borrows buttons side-by-side ───────────────────────
-          Row(
-            children: [
-              Expanded(
-                child: _ActionButton(
-                  label: 'Loans',
-                  sublabel: 'Owed to me',
-                  icon: Icons.handshake_outlined,
-                  gradient: const LinearGradient(
-                    colors: [Color(0xFF5BA3E8), Color(0xFF4A90D9)],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                  ),
-                  shadowColor: const Color(0xFF4A90D9),
-                  hasNotification: hasActiveLoan,
-                  onTap: onLoanTap,
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: _ActionButton(
-                  label: 'Borrows',
-                  sublabel: 'I owe',
-                  icon: Icons.account_balance_wallet_outlined,
-                  gradient: const LinearGradient(
-                    colors: [Color(0xFFFF8E8E), Color(0xFFFF6B6B)],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                  ),
-                  shadowColor: const Color(0xFFFF6B6B),
-                  hasNotification: hasActiveBorrow,
-                  onTap: onBorrowTap,
-                ),
-              ),
-            ],
-          ),
-        ],
-    );
-  }
+  State<_SwipeableInfoCards> createState() => _SwipeableInfoCardsState();
 }
 
-// ─── Action Button with notification badge ─────────────────────────────────
-class _ActionButton extends StatelessWidget {
-  final String label;
-  final String sublabel;
-  final IconData icon;
-  final LinearGradient gradient;
-  final Color shadowColor;
-  final bool hasNotification;
-  final VoidCallback onTap;
+class _SwipeableInfoCardsState extends State<_SwipeableInfoCards> {
+  final PageController _pageController = PageController(viewportFraction: 0.93);
+  int _currentPage = 0;
 
-  const _ActionButton({
-    required this.label,
-    required this.sublabel,
-    required this.icon,
-    required this.gradient,
-    required this.shadowColor,
-    required this.hasNotification,
-    required this.onTap,
-  });
+  @override
+  void dispose() {
+    _pageController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
-    return Stack(
-      clipBehavior: Clip.none,
+    final loans = widget.allExpenses.where((tx) => tx.category == 'Loan' && !tx.isCleared).toList();
+    final borrows = widget.allExpenses.where((tx) => tx.category == 'Borrow' && !tx.isCleared).toList();
+    final totalLoans = loans.fold(0.0, (sum, tx) => sum + tx.remainingAmount);
+    final totalBorrows = borrows.fold(0.0, (sum, tx) => sum + tx.remainingAmount);
+
+    // Build beneficiary net balance map
+    final activePeople = <String, double>{};
+    for (final tx in widget.allExpenses) {
+      if (tx.beneficiary != null && !tx.isCleared) {
+        final prev = activePeople[tx.beneficiary!] ?? 0.0;
+        activePeople[tx.beneficiary!] = tx.category == 'Loan'
+            ? prev + tx.remainingAmount
+            : prev - tx.remainingAmount;
+      }
+    }
+
+    final cards = [
+      _buildPeopleCard(activePeople),
+      _buildLoansCard(loans.length, totalLoans),
+      _buildBorrowsCard(borrows.length, totalBorrows),
+    ];
+
+    return Column(
       children: [
-        // Main button
-        Material(
-          color: Colors.transparent,
-          borderRadius: BorderRadius.circular(16),
-          child: InkWell(
-            borderRadius: BorderRadius.circular(16),
-            onTap: onTap,
-            child: Container(
-              width: double.infinity,
-              padding: const EdgeInsets.symmetric(
-                  horizontal: 14, vertical: 12),
-              decoration: BoxDecoration(
-                gradient: gradient,
-                borderRadius: BorderRadius.circular(16),
-                boxShadow: [
-                  BoxShadow(
-                    color: shadowColor.withValues(alpha: 0.35),
-                    blurRadius: 14,
-                    offset: const Offset(0, 6),
-                  ),
-                ],
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(icon, color: Colors.white, size: 22),
-                  const SizedBox(height: 6),
-                  Text(
-                    label,
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 13,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  Text(
-                    sublabel,
-                    style: TextStyle(
-                      color: Colors.white.withValues(alpha: 0.75),
-                      fontSize: 10,
-                    ),
-                  ),
-                ],
-              ),
+        SizedBox(
+          height: 168,
+          child: PageView.builder(
+            controller: _pageController,
+            itemCount: cards.length,
+            onPageChanged: (i) => setState(() => _currentPage = i),
+            itemBuilder: (ctx, i) => Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 4),
+              child: cards[i],
             ),
           ),
         ),
-
-        // Notification badge (red dot)
-        if (hasNotification)
-          Positioned(
-            top: -4,
-            right: -4,
-            child: Container(
-              width: 14,
-              height: 14,
+        const SizedBox(height: 10),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: List.generate(cards.length, (i) {
+            final selected = _currentPage == i;
+            return AnimatedContainer(
+              duration: const Duration(milliseconds: 300),
+              margin: const EdgeInsets.symmetric(horizontal: 3),
+              width: selected ? 22 : 6,
+              height: 6,
               decoration: BoxDecoration(
-                color: Colors.red.shade500,
-                shape: BoxShape.circle,
-                border: Border.all(color: Colors.white, width: 2),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.red.withValues(alpha: 0.5),
-                    blurRadius: 6,
+                color: selected
+                    ? const Color(0xFF10B981)
+                    : Colors.grey.withValues(alpha: 0.35),
+                borderRadius: BorderRadius.circular(3),
+              ),
+            );
+          }),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildPeopleCard(Map<String, double> activePeople) {
+    return GestureDetector(
+      child: Container(
+        padding: const EdgeInsets.fromLTRB(20, 18, 20, 18),
+        decoration: BoxDecoration(
+          gradient: const LinearGradient(
+            colors: [Color(0xFFFEF9C3), Color(0xFFFDE68A)],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+          borderRadius: BorderRadius.circular(24),
+          boxShadow: [
+            BoxShadow(
+              color: const Color(0xFFFBBF24).withValues(alpha: 0.45),
+              blurRadius: 18,
+              offset: const Offset(0, 8),
+            ),
+          ],
+        ),
+        child: Row(
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(6),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFF59E0B).withValues(alpha: 0.25),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: const Icon(Icons.people_outline, color: Color(0xFF78350F), size: 16),
+                      ),
+                      const SizedBox(width: 8),
+                      const Text('People', style: TextStyle(color: Color(0xFF78350F), fontSize: 13, fontWeight: FontWeight.w700)),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  if (activePeople.isEmpty)
+                    const Text('No active debts 🎉', style: TextStyle(color: Color(0xFF92400E), fontSize: 15, fontWeight: FontWeight.w600))
+                  else
+                    ...activePeople.entries.take(3).map((e) {
+                      final isOwed = e.value > 0;
+                      return Padding(
+                        padding: const EdgeInsets.only(bottom: 4),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text(e.key, style: const TextStyle(color: Color(0xFF78350F), fontSize: 13, fontWeight: FontWeight.bold)),
+                            Text(
+                              isOwed ? '+Rs ${e.value.toStringAsFixed(0)}' : '-Rs ${e.value.abs().toStringAsFixed(0)}',
+                              style: TextStyle(
+                                color: isOwed ? const Color(0xFF166534) : const Color(0xFF991B1B),
+                                fontSize: 13,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ],
+                        ),
+                      );
+                    }),
+                  const SizedBox(height: 4),
+                  Text(
+                    '${activePeople.length} active ${activePeople.length == 1 ? "person" : "people"}',
+                    style: const TextStyle(color: Color(0xFFA16207), fontSize: 11, fontWeight: FontWeight.w500),
                   ),
                 ],
               ),
             ),
+            const SizedBox(width: 8),
+            Icon(Icons.people, size: 64, color: const Color(0xFFF59E0B).withValues(alpha: 0.25)),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildLoansCard(int count, double total) {
+    return GestureDetector(
+      onTap: widget.onLoanTap,
+      child: Container(
+        padding: const EdgeInsets.fromLTRB(20, 18, 20, 18),
+        decoration: BoxDecoration(
+          gradient: const LinearGradient(
+            colors: [Color(0xFF3B82F6), Color(0xFF1D4ED8)],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
           ),
-      ],
+          borderRadius: BorderRadius.circular(24),
+          boxShadow: [
+            BoxShadow(
+              color: const Color(0xFF3B82F6).withValues(alpha: 0.45),
+              blurRadius: 18,
+              offset: const Offset(0, 8),
+            ),
+          ],
+        ),
+        child: Row(
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(6),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withValues(alpha: 0.2),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: const Icon(Icons.handshake_outlined, color: Colors.white, size: 16),
+                      ),
+                      const SizedBox(width: 8),
+                      const Text('Loans', style: TextStyle(color: Colors.white70, fontSize: 13, fontWeight: FontWeight.w700)),
+                      const Spacer(),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withValues(alpha: 0.18),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: const Text('Tap to view', style: TextStyle(color: Colors.white70, fontSize: 10)),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Rs ${total.toStringAsFixed(0)}',
+                    style: const TextStyle(color: Colors.white, fontSize: 32, fontWeight: FontWeight.bold, letterSpacing: -0.5),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    '$count active loan${count == 1 ? "" : "s"} • Owed to you',
+                    style: const TextStyle(color: Colors.white70, fontSize: 11),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 8),
+            Icon(Icons.handshake, size: 64, color: Colors.white.withValues(alpha: 0.18)),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildBorrowsCard(int count, double total) {
+    return GestureDetector(
+      onTap: widget.onBorrowTap,
+      child: Container(
+        padding: const EdgeInsets.fromLTRB(20, 18, 20, 18),
+        decoration: BoxDecoration(
+          gradient: const LinearGradient(
+            colors: [Color(0xFFEF4444), Color(0xFFB91C1C)],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+          borderRadius: BorderRadius.circular(24),
+          boxShadow: [
+            BoxShadow(
+              color: const Color(0xFFEF4444).withValues(alpha: 0.45),
+              blurRadius: 18,
+              offset: const Offset(0, 8),
+            ),
+          ],
+        ),
+        child: Row(
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(6),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withValues(alpha: 0.2),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: const Icon(Icons.account_balance_wallet_outlined, color: Colors.white, size: 16),
+                      ),
+                      const SizedBox(width: 8),
+                      const Text('Borrows', style: TextStyle(color: Colors.white70, fontSize: 13, fontWeight: FontWeight.w700)),
+                      const Spacer(),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withValues(alpha: 0.18),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: const Text('Tap to view', style: TextStyle(color: Colors.white70, fontSize: 10)),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Rs ${total.toStringAsFixed(0)}',
+                    style: const TextStyle(color: Colors.white, fontSize: 32, fontWeight: FontWeight.bold, letterSpacing: -0.5),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    '$count active borrow${count == 1 ? "" : "s"} • You owe',
+                    style: const TextStyle(color: Colors.white70, fontSize: 11),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 8),
+            Icon(Icons.account_balance_wallet, size: 64, color: Colors.white.withValues(alpha: 0.18)),
+          ],
+        ),
+      ),
     );
   }
 }
