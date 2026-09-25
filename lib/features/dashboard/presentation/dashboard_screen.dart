@@ -487,15 +487,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // 1 ── Emerald Wallet Card ─────────────────────────────────
-              _WalletCard(
+              // ── Swipeable Cards (Spent / People / Loans / Borrows) ────
+              _SwipeableInfoCards(
                 selectedDaySpent: selectedDaySpent,
                 budgetPercentage: budgetPercentage,
-              ),
-              const SizedBox(height: 16),
-
-              // 2 ── Swipeable Info Cards (People / Loans / Borrows) ─────
-              _SwipeableInfoCards(
                 allExpenses: allExpenses,
                 onSettle: (b) {
                   provider.settleWithBeneficiary(b);
@@ -778,115 +773,19 @@ class _DashboardScreenState extends State<DashboardScreen> {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
-//  WALLET CARD  (Emerald Green)
-// ═══════════════════════════════════════════════════════════════════════════════
-class _WalletCard extends StatelessWidget {
-  final double selectedDaySpent;
-  final double budgetPercentage;
-
-  const _WalletCard({
-    required this.selectedDaySpent,
-    required this.budgetPercentage,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(24),
-      decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [Color(0xFF10B981), Color(0xFF047857)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.circular(24),
-        boxShadow: [
-          BoxShadow(
-            color: const Color(0xFF10B981).withValues(alpha: 0.45),
-            blurRadius: 24,
-            offset: const Offset(0, 10),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Row(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(6),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.2),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: const Icon(Icons.today_outlined, color: Colors.white, size: 16),
-                  ),
-                  const SizedBox(width: 8),
-                  const Text(
-                    'Spent Today',
-                    style: TextStyle(color: Colors.white70, fontSize: 13, fontWeight: FontWeight.w500),
-                  ),
-                ],
-              ),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.18),
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: const Text('Daily', style: TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w600)),
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
-          Text(
-            'Rs ${selectedDaySpent.toStringAsFixed(0)}',
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 38,
-              fontWeight: FontWeight.bold,
-              letterSpacing: -1,
-            ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            budgetPercentage > 0
-                ? '${(budgetPercentage * 100).toStringAsFixed(0)}% of monthly budget used'
-                : 'No budget set',
-            style: TextStyle(color: Colors.white.withValues(alpha: 0.75), fontSize: 12),
-          ),
-          const SizedBox(height: 16),
-          ClipRRect(
-            borderRadius: BorderRadius.circular(10),
-            child: LinearProgressIndicator(
-              value: budgetPercentage.clamp(0.0, 1.0),
-              minHeight: 7,
-              backgroundColor: Colors.black.withValues(alpha: 0.15),
-              valueColor: AlwaysStoppedAnimation<Color>(
-                budgetPercentage > 0.9 ? Colors.redAccent.shade100 : Colors.white.withValues(alpha: 0.9),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-// ═══════════════════════════════════════════════════════════════════════════════
-//  SWIPEABLE INFO CARDS  (People / Loans / Borrows)
+//  SWIPEABLE INFO CARDS  (Spent Today / People / Loans / Borrows)
 // ═══════════════════════════════════════════════════════════════════════════════
 class _SwipeableInfoCards extends StatefulWidget {
+  final double selectedDaySpent;
+  final double budgetPercentage;
   final List<ExpenseModel> allExpenses;
   final void Function(String) onSettle;
   final VoidCallback onLoanTap;
   final VoidCallback onBorrowTap;
 
   const _SwipeableInfoCards({
+    required this.selectedDaySpent,
+    required this.budgetPercentage,
     required this.allExpenses,
     required this.onSettle,
     required this.onLoanTap,
@@ -914,7 +813,6 @@ class _SwipeableInfoCardsState extends State<_SwipeableInfoCards> {
     final totalLoans = loans.fold(0.0, (sum, tx) => sum + tx.remainingAmount);
     final totalBorrows = borrows.fold(0.0, (sum, tx) => sum + tx.remainingAmount);
 
-    // Build beneficiary net balance map
     final activePeople = <String, double>{};
     for (final tx in widget.allExpenses) {
       if (tx.beneficiary != null && !tx.isCleared) {
@@ -926,6 +824,7 @@ class _SwipeableInfoCardsState extends State<_SwipeableInfoCards> {
     }
 
     final cards = [
+      _buildSpentCard(),
       _buildPeopleCard(activePeople),
       _buildLoansCard(loans.length, totalLoans),
       _buildBorrowsCard(borrows.length, totalBorrows),
@@ -934,7 +833,7 @@ class _SwipeableInfoCardsState extends State<_SwipeableInfoCards> {
     return Column(
       children: [
         SizedBox(
-          height: 168,
+          height: 190,
           child: PageView.builder(
             controller: _pageController,
             itemCount: cards.length,
@@ -965,6 +864,90 @@ class _SwipeableInfoCardsState extends State<_SwipeableInfoCards> {
           }),
         ),
       ],
+    );
+  }
+
+  Widget _buildSpentCard() {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(22, 20, 22, 20),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: [Color(0xFF10B981), Color(0xFF047857)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(24),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF10B981).withValues(alpha: 0.45),
+            blurRadius: 22,
+            offset: const Offset(0, 10),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(6),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.2),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: const Icon(Icons.today_outlined, color: Colors.white, size: 16),
+                    ),
+                    const SizedBox(width: 8),
+                    const Text('Spent Today', style: TextStyle(color: Colors.white70, fontSize: 13, fontWeight: FontWeight.w500)),
+                    const Spacer(),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.18),
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: const Text('Daily', style: TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w600)),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'Rs ${widget.selectedDaySpent.toStringAsFixed(0)}',
+                  style: const TextStyle(color: Colors.white, fontSize: 38, fontWeight: FontWeight.bold, letterSpacing: -1),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  widget.budgetPercentage > 0
+                      ? '${(widget.budgetPercentage * 100).toStringAsFixed(0)}% of monthly budget used'
+                      : 'No budget set',
+                  style: TextStyle(color: Colors.white.withValues(alpha: 0.75), fontSize: 12),
+                ),
+                const SizedBox(height: 12),
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(10),
+                  child: LinearProgressIndicator(
+                    value: widget.budgetPercentage.clamp(0.0, 1.0),
+                    minHeight: 7,
+                    backgroundColor: Colors.black.withValues(alpha: 0.15),
+                    valueColor: AlwaysStoppedAnimation<Color>(
+                      widget.budgetPercentage > 0.9
+                          ? Colors.redAccent.shade100
+                          : Colors.white.withValues(alpha: 0.9),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 8),
+          Icon(Icons.account_balance_wallet, size: 64, color: Colors.white.withValues(alpha: 0.18)),
+        ],
+      ),
     );
   }
 
