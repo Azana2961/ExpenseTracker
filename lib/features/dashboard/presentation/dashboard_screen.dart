@@ -1064,9 +1064,10 @@ class _SwipeableInfoCardsState extends State<_SwipeableInfoCards> {
 
     final activePeople = <String, double>{};
     for (final tx in widget.allExpenses) {
-      if (tx.beneficiary != null && !tx.isCleared) {
-        final prev = activePeople[tx.beneficiary!] ?? 0.0;
-        activePeople[tx.beneficiary!] = tx.category == 'Loan'
+      final b = tx.beneficiary;
+      if (b != null && !tx.isCleared) {
+        final prev = activePeople[b] ?? 0.0;
+        activePeople[b] = tx.category == 'Loan'
             ? prev + tx.remainingAmount
             : prev - tx.remainingAmount;
       }

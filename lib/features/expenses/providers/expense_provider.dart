@@ -11,12 +11,12 @@ class ExpenseProvider with ChangeNotifier {
   List<ExpenseModel>   get expenses   => _expenses;
   List<RepaymentModel> get repayments => _repayments;
 
-  /// Returns a list of all unique beneficiaries from expenses.
   List<String> get uniqueBeneficiaries {
     final set = <String>{};
     for (final e in _expenses) {
-      if (e.beneficiary != null && e.beneficiary!.isNotEmpty) {
-        set.add(e.beneficiary!);
+      final b = e.beneficiary;
+      if (b != null && b.isNotEmpty) {
+        set.add(b);
       }
     }
     return set.toList()..sort();
