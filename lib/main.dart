@@ -8,6 +8,7 @@ import 'features/analytics/presentation/analytics_screen.dart';
 import 'features/setup/presentation/setup_screen.dart';
 import 'features/expenses/providers/expense_provider.dart'; 
 import 'features/setup/providers/settings_provider.dart'; 
+import 'core/theme/app_theme.dart';
 
 import 'core/services/notification_service.dart';
 
@@ -110,8 +111,6 @@ class ScaffoldWithNavBar extends StatelessWidget {
             );
           }
         },
-        backgroundColor: Colors.white,
-        indicatorColor: const Color(0xFF2EC4B6).withValues(alpha: 0.2),
         destinations: const [
           NavigationDestination(icon: Icon(Icons.home_outlined), selectedIcon: Icon(Icons.home, color: Color(0xFF2EC4B6)), label: 'Home'),
           NavigationDestination(icon: Icon(Icons.add_circle_outline), selectedIcon: Icon(Icons.add_circle, color: Color(0xFF2EC4B6)), label: 'Add'),
@@ -169,11 +168,9 @@ class _HostelExpenseAppState extends State<HostelExpenseApp> {
   Widget build(BuildContext context) {
     return MaterialApp.router(
       title: 'Kharcha Yar',
-      theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF2EC4B6)),
-        scaffoldBackgroundColor: Colors.grey.shade50,
-        useMaterial3: true,
-      ),
+      theme: AppTheme.lightTheme,
+      darkTheme: AppTheme.darkTheme,
+      themeMode: ThemeMode.dark,
       routerConfig: _router,
       debugShowCheckedModeBanner: false,
     );

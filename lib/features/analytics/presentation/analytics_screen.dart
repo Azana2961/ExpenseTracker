@@ -170,11 +170,11 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
     }
 
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
-        backgroundColor: Colors.white,
+        backgroundColor: Theme.of(context).scaffoldBackgroundColor,
         elevation: 0,
-        title: const Text('Analytics', style: TextStyle(color: Colors.black87, fontWeight: FontWeight.bold)),
+        title: const Text('Analytics', style: TextStyle(fontWeight: FontWeight.bold)),
         centerTitle: true,
       ),
       body: SingleChildScrollView(
@@ -187,7 +187,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
               children: [
                 Text(
                   _selectedMonthName!,
-                  style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.black87),
+                  style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                 ),
                 Text(
                   'Total: Rs ${totalSpent.toStringAsFixed(0)}',
@@ -239,7 +239,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
                     children: [
                       Container(width: 12, height: 12, decoration: BoxDecoration(color: getCatColor(cat, idx), shape: BoxShape.circle)),
                       const SizedBox(width: 4),
-                      Text(cat, style: const TextStyle(fontSize: 12, color: Colors.black54)),
+                      Text(cat, style: TextStyle(fontSize: 12, color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6))),
                     ],
                   );
                 }).toList(),
@@ -303,7 +303,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
                           final text = isToday ? 'Today' : DateFormat('EEE').format(date);
                           return Padding(
                             padding: const EdgeInsets.only(top: 8),
-                            child: Text(text, style: TextStyle(fontSize: 10, fontWeight: isToday ? FontWeight.bold : FontWeight.normal, color: isToday ? primaryTeal : Colors.black54)),
+                            child: Text(text, style: TextStyle(fontSize: 10, fontWeight: isToday ? FontWeight.bold : FontWeight.normal, color: isToday ? primaryTeal : Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.5))),
                           );
                         },
                       ),
@@ -332,10 +332,10 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
               ),
             ),
             const SizedBox(height: 32),
-            const Divider(color: Colors.black12),
+            const Divider(),
             const SizedBox(height: 20),
 
-            const Text('History Log', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.black87)),
+            const Text('History Log', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
             const SizedBox(height: 12),
             
             if (sortedMonths.length == 1 && categories.isEmpty)
@@ -359,9 +359,9 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
                     margin: const EdgeInsets.symmetric(vertical: 4),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12),
-                      side: BorderSide(color: isSelected ? primaryTeal : Colors.grey.shade100, width: isSelected ? 2 : 1),
+                      side: BorderSide(color: isSelected ? primaryTeal : Theme.of(context).dividerColor, width: isSelected ? 2 : 1),
                     ),
-                    color: isSelected ? primaryTeal.withValues(alpha: 0.05) : Colors.grey.shade50,
+                    color: isSelected ? primaryTeal.withValues(alpha: 0.1) : Theme.of(context).colorScheme.surface,
                     child: ListTile(
                       onTap: () {
                         setState(() {
@@ -384,11 +384,11 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
                             style: TextStyle(
                               fontWeight: FontWeight.bold, 
                               fontSize: 15,
-                              color: monthCost > budgetLimit ? Colors.redAccent : Colors.black87
+                              color: monthCost > budgetLimit ? Colors.redAccent : Theme.of(context).colorScheme.onSurface,
                             ),
                           ),
                           const SizedBox(width: 4),
-                          const Icon(Icons.chevron_right, size: 16, color: Colors.grey),
+                          Icon(Icons.chevron_right, size: 16, color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.4)),
                         ],
                       ),
                     ),

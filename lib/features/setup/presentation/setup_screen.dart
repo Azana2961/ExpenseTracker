@@ -278,8 +278,8 @@ class _SetupScreenState extends State<SetupScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
-      appBar: AppBar(title: const Text('Setup', style: TextStyle(color: Colors.black87, fontWeight: FontWeight.bold)), centerTitle: true, elevation: 0, backgroundColor: Colors.white),
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+      appBar: AppBar(title: const Text('Setup', style: TextStyle(fontWeight: FontWeight.bold)), centerTitle: true, elevation: 0, backgroundColor: Theme.of(context).scaffoldBackgroundColor),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16.0),
         child: Column(
@@ -308,7 +308,7 @@ class _SetupScreenState extends State<SetupScreen> {
             ListTile(
               onTap: _showManageCategoriesDialog,
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-              tileColor: Colors.grey.shade50,
+              tileColor: Theme.of(context).colorScheme.surface,
               leading: Icon(Icons.category, color: primaryTeal),
               title: const Text('Manage Categories', style: TextStyle(fontWeight: FontWeight.w600)),
               subtitle: const Text('Add or remove expense categories'),
@@ -318,7 +318,7 @@ class _SetupScreenState extends State<SetupScreen> {
             ListTile(
               onTap: _showManageQuickAddsDialog,
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-              tileColor: Colors.grey.shade50,
+              tileColor: Theme.of(context).colorScheme.surface,
               leading: Icon(Icons.bolt, color: Colors.orange.shade400),
               title: const Text('Manage Quick Adds', style: TextStyle(fontWeight: FontWeight.w600)),
               subtitle: const Text('Edit or add shortcut buttons'),

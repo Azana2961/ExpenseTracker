@@ -150,23 +150,22 @@ class _ExpenseScreenState extends State<ExpenseScreen> {
     final String formattedDate = DateFormat('EEEE, MMMM d').format(_selectedDate);
 
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
-        backgroundColor: Colors.white,
+        backgroundColor: Theme.of(context).scaffoldBackgroundColor,
         elevation: 0,
         title: Column(
           children: [
             const Text(
               'Log Expense',
               style: TextStyle(
-                color: Colors.black87,
                 fontWeight: FontWeight.bold,
                 fontSize: 18,
               ),
             ),
             Text(
               formattedDate,
-              style: const TextStyle(color: Colors.grey, fontSize: 13),
+              style: TextStyle(color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.5), fontSize: 13),
             ),
           ],
         ),
@@ -183,7 +182,6 @@ class _ExpenseScreenState extends State<ExpenseScreen> {
                 style: TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.bold,
-                  color: Colors.black87,
                 ),
               ),
               const SizedBox(height: 12),
@@ -217,7 +215,6 @@ class _ExpenseScreenState extends State<ExpenseScreen> {
               style: TextStyle(
                 fontSize: 18,
                 fontWeight: FontWeight.bold,
-                color: Colors.black87,
               ),
             ),
             const SizedBox(height: 16),

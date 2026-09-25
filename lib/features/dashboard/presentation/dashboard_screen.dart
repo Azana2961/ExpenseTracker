@@ -100,8 +100,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
           padding:
               EdgeInsets.only(bottom: MediaQuery.of(ctx).viewInsets.bottom),
           child: Container(
-            decoration: const BoxDecoration(
-              color: Colors.white,
+            decoration: BoxDecoration(
+              color: Theme.of(ctx).colorScheme.surface,
               borderRadius:
                   BorderRadius.vertical(top: Radius.circular(24)),
             ),
@@ -141,14 +141,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
                             'Record Payment',
                             style: TextStyle(
                                 fontSize: 18,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.black87),
+                                fontWeight: FontWeight.bold),
                           ),
                           Text(
                             tx.label,
                             style: TextStyle(
                                 fontSize: 13,
-                                color: Colors.grey.shade600),
+                                color: Theme.of(ctx).colorScheme.onSurface.withValues(alpha: 0.55)),
                             overflow: TextOverflow.ellipsis,
                           ),
                         ],
@@ -171,11 +170,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     children: [
                       _paymentRow('Original Amount',
                           'Rs ${tx.amount.toStringAsFixed(0)}',
-                          Colors.black87),
+                          Theme.of(ctx).colorScheme.onSurface),
                       const SizedBox(height: 8),
                       _paymentRow('Already Paid',
                           'Rs ${tx.amountPaid.toStringAsFixed(0)}',
-                          Colors.grey.shade600),
+                          Theme.of(ctx).colorScheme.onSurface.withValues(alpha: 0.55)),
                       const Divider(height: 20),
                       _paymentRow(
                         'Still Outstanding',
@@ -313,7 +312,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
         Text(label,
-            style: TextStyle(color: Colors.grey.shade600, fontSize: 13)),
+            style: TextStyle(color: Colors.grey.shade500, fontSize: 13)),
         Text(
           value,
           style: TextStyle(
@@ -481,7 +480,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF8F9FA),
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
@@ -584,8 +583,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
           minChildSize: 0.4,
           builder: (_, scrollCtrl) {
             return Container(
-              decoration: const BoxDecoration(
-                color: Colors.white,
+              decoration: BoxDecoration(
+                color: Theme.of(ctx).colorScheme.surface,
                 borderRadius:
                     BorderRadius.vertical(top: Radius.circular(24)),
               ),
@@ -598,7 +597,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       width: 40,
                       height: 4,
                       decoration: BoxDecoration(
-                          color: Colors.grey.shade300,
+                          color: Theme.of(ctx).dividerColor,
                           borderRadius: BorderRadius.circular(2)),
                     ),
                   ),
@@ -669,13 +668,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                 child: Container(
                                   decoration: BoxDecoration(
                                     color: cleared
-                                        ? Colors.white
+                                        ? Theme.of(ctx).colorScheme.surface
                                         : bgColor,
                                     borderRadius:
                                         BorderRadius.circular(14),
                                     border: Border.all(
                                         color: cleared
-                                            ? Colors.grey.shade100
+                                            ? Theme.of(ctx).dividerColor
                                             : borderColor),
                                     boxShadow: [
                                       BoxShadow(
@@ -717,8 +716,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                       style: TextStyle(
                                         fontWeight: FontWeight.bold,
                                         color: cleared
-                                            ? Colors.grey
-                                            : Colors.black87,
+                                            ? Theme.of(ctx).colorScheme.onSurface.withValues(alpha: 0.4)
+                                            : Theme.of(ctx).colorScheme.onSurface,
                                         decoration: cleared
                                             ? TextDecoration.lineThrough
                                             : null,
@@ -1040,11 +1039,11 @@ class _DateNavRow extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Theme.of(context).colorScheme.surface,
         borderRadius: BorderRadius.circular(14),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.04),
+            color: Colors.black.withValues(alpha: 0.06),
             blurRadius: 10,
             offset: const Offset(0, 3),
           ),
@@ -1055,7 +1054,7 @@ class _DateNavRow extends StatelessWidget {
           // Left arrow
           IconButton(
             icon: const Icon(Icons.chevron_left, size: 28),
-            color: Colors.black87,
+            color: Theme.of(context).colorScheme.onSurface,
             onPressed: onPrev,
             tooltip: 'Previous day',
           ),
@@ -1064,10 +1063,10 @@ class _DateNavRow extends StatelessWidget {
             child: Text(
               label,
               textAlign: TextAlign.center,
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 17,
                 fontWeight: FontWeight.bold,
-                color: Colors.black87,
+                color: Theme.of(context).colorScheme.onSurface,
               ),
             ),
           ),
@@ -1076,7 +1075,7 @@ class _DateNavRow extends StatelessWidget {
             icon: Icon(
               Icons.chevron_right,
               size: 28,
-              color: onNext != null ? Colors.black87 : Colors.grey.shade300,
+              color: onNext != null ? Theme.of(context).colorScheme.onSurface : Theme.of(context).dividerColor,
             ),
             onPressed: onNext,
             tooltip: 'Next day',
@@ -1167,7 +1166,7 @@ class _DailyLedger extends StatelessWidget {
                 '$totalItems item${totalItems == 1 ? '' : 's'}',
                 style: TextStyle(
                   fontSize: 13,
-                  color: Colors.grey.shade600,
+                  color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.55),
                   fontWeight: FontWeight.w500,
                 ),
               ),
@@ -1207,10 +1206,10 @@ class _RepaymentCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isBorrow = repayment.category == 'Borrow';
-    // Borrow repayment → you PAID OUT (red, debit)
-    // Loan repayment   → you RECEIVED (green, credit)
     final color  = isBorrow ? Colors.red.shade600 : Colors.green.shade600;
-    final bg     = isBorrow ? const Color(0xFFFFECEC) : const Color(0xFFECF9EC);
+    final bg     = isBorrow 
+        ? const Color(0xFF3D1A1A)
+        : const Color(0xFF1A3D1A);
     final icon   = isBorrow ? Icons.arrow_upward   : Icons.arrow_downward;
     final label  = isBorrow ? 'Paid back (Borrow)' : 'Received back (Loan)';
     final prefix = isBorrow ? '- Rs ' : '+ Rs ';
@@ -1244,9 +1243,9 @@ class _RepaymentCard extends StatelessWidget {
                 children: [
                   Text(
                     label,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontWeight: FontWeight.w700,
-                      color: Colors.black87,
+                      color: Theme.of(context).colorScheme.onSurface,
                       fontSize: 14,
                     ),
                   ),
@@ -1305,8 +1304,10 @@ class _TransactionCard extends StatelessWidget {
             ? Colors.red.shade600
             : primaryTeal;
     final Color bgColor = isSpecial && !isCleared
-        ? (isLoan ? const Color(0xFFECF9EC) : const Color(0xFFFFECEC))
-        : Colors.white;
+        ? (isLoan 
+            ? const Color(0xFF1A3020) 
+            : const Color(0xFF3D1A1A))
+        : Theme.of(context).colorScheme.surface;
 
     // Non-creation-day: compact tappable tracking card
     if (isSpecial && !isCreationDay && !isCleared) {
@@ -1342,9 +1343,9 @@ class _TransactionCard extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(tx.label + (tx.beneficiary != null ? ' (${tx.beneficiary})' : ''),
-                          style: const TextStyle(
+                          style: TextStyle(
                               fontWeight: FontWeight.w700,
-                              color: Colors.black87,
+                              color: Theme.of(context).colorScheme.onSurface,
                               fontSize: 14)),
                       const SizedBox(height: 2),
                       Text(
@@ -1390,7 +1391,7 @@ class _TransactionCard extends StatelessWidget {
     String amountPrefix = '- ';
     final Color containerColor = bgColor;
     final Color borderColor    = isSpecial && !isCleared
-        ? accentColor.withValues(alpha: 0.2) : Colors.grey.shade100;
+        ? accentColor.withValues(alpha: 0.3) : Theme.of(context).dividerColor;
     final Color iconBgColor    = isCleared
         ? primaryTeal.withValues(alpha: 0.1) : accentColor.withValues(alpha: 0.15);
     final Color iconColor      = isCleared ? primaryTeal : accentColor;
@@ -1411,10 +1412,10 @@ class _TransactionCard extends StatelessWidget {
         onLongPress: isCreationDay ? onEdit : null,
         child: Container(
           decoration: BoxDecoration(
-            color: !isCleared ? containerColor : Colors.white,
+            color: !isCleared ? containerColor : Theme.of(context).colorScheme.surface,
             borderRadius: BorderRadius.circular(16),
             border: Border.all(
-                color: !isCleared ? borderColor : Colors.grey.shade100),
+                color: !isCleared ? borderColor : Theme.of(context).dividerColor),
             boxShadow: [
               BoxShadow(
                 color: Colors.black.withValues(alpha: 0.04),
@@ -1441,8 +1442,8 @@ class _TransactionCard extends StatelessWidget {
                     ? TextDecoration.lineThrough
                     : null,
                 color: isSpecial && isCleared
-                    ? Colors.grey
-                    : Colors.black87,
+                    ? Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.4)
+                    : Theme.of(context).colorScheme.onSurface,
               ),
             ),
             subtitle: Text(
@@ -1497,7 +1498,7 @@ class _TransactionCard extends StatelessWidget {
                     child: Padding(
                       padding: const EdgeInsets.all(6.0),
                       child: Icon(Icons.edit_outlined,
-                          size: 18, color: Colors.grey.shade400),
+                          size: 18, color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.3)),
                     ),
                   ),
               ],
@@ -1533,7 +1534,6 @@ class _BeneficiariesSection extends StatelessWidget {
           style: TextStyle(
             fontSize: 18,
             fontWeight: FontWeight.bold,
-            color: Colors.black87,
           ),
         ),
         const SizedBox(height: 12),
@@ -1574,12 +1574,12 @@ class _BeneficiariesSection extends StatelessWidget {
                 margin: const EdgeInsets.only(right: 12),
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: Colors.white,
+                  color: Theme.of(context).colorScheme.surface,
                   borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: color.withValues(alpha: 0.2)),
+                  border: Border.all(color: color.withValues(alpha: 0.25)),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.04),
+                      color: Colors.black.withValues(alpha: 0.06),
                       blurRadius: 8,
                       offset: const Offset(0, 3),
                     ),

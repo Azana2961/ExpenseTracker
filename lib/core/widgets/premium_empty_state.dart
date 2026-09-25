@@ -57,14 +57,14 @@ class _PremiumEmptyStateState extends State<PremiumEmptyState> with SingleTicker
             ),
           ),
           const SizedBox(height: 24),
-          Text(widget.title, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.black87)),
+          Text(widget.title, style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Theme.of(context).colorScheme.onSurface)),
           const SizedBox(height: 8),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 40),
             child: Text(
               widget.subtitle,
               textAlign: TextAlign.center,
-              style: const TextStyle(fontSize: 14, color: Colors.grey, height: 1.5),
+              style: TextStyle(fontSize: 14, color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.5), height: 1.5),
             ),
           ),
         ],
