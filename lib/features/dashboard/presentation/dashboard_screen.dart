@@ -56,8 +56,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
   ///
   /// Repayments are handled separately in the build() method.
   double _originCashFlow(ExpenseModel tx) {
-    if (tx.category == 'Borrow') return 0.0; // received money
-    return tx.amount;                        // Loan + all regular expenses
+    if (tx.category == 'Borrow' || tx.category == 'Loan') return 0.0; // Asset transfers
+    return tx.amount;                        // all regular expenses
   }
 
   IconData _getCategoryIcon(String category) {
@@ -424,12 +424,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
     final settings     = context.watch<SettingsProvider>();
 
     final double monthlyBudget   = settings.monthlyBudget;
-    final double idealDailySpend = settings.idealDailySpend;
 
     final DateTime today       = DateTime.now();
-    final int daysInMonth      = DateUtils.getDaysInMonth(today.year, today.month);
-    final int currentDay       = today.day;
-    final int remainingDays    = daysInMonth - currentDay;
 
     // ── Monthly net budget impact ──────────────────────────────────────
     double currentSpent = 0.0;
@@ -441,15 +437,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
       }
     }
     // b) Repayments this month
-    for (final r in allRepayments) {
-      if (r.date.month == today.month && r.date.year == today.year) {
-        if (r.category == 'Borrow') {
-          currentSpent += r.amount; // Cash left pocket
-        } else if (r.category == 'Loan') {
-          currentSpent -= r.amount; // Cash came back
-        }
-      }
-    }
+    // (Industry standard: Repayments are asset transfers, they don't affect spent)
+
     currentSpent = currentSpent.clamp(0.0, double.infinity);
 
     // ── Selected-day cash flow ──────────────────────────────────────────
@@ -461,20 +450,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
         selectedDaySpent += _originCashFlow(tx);
       }
     }
-    // b) Borrow repayments made on this day (cash left your pocket)
-    for (final r in allRepayments) {
-      if (r.category == 'Borrow' &&
-          _isSameDay(_dateOnly(r.date), _selectedDate)) {
-        selectedDaySpent += r.amount;
-      }
-    }
-    // c) Loan repayments received on this day (cash came back → reduce spent)
-    for (final r in allRepayments) {
-      if (r.category == 'Loan' &&
-          _isSameDay(_dateOnly(r.date), _selectedDate)) {
-        selectedDaySpent -= r.amount;
-      }
-    }
+    // Repayments are no longer added/subtracted here because they are transfers.
     selectedDaySpent = selectedDaySpent.clamp(0.0, double.infinity);
 
     // ── Budget metrics ────────────────────────────────────────────────────
@@ -482,15 +458,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
         monthlyBudget > 0
             ? (currentSpent / monthlyBudget).clamp(0.0, 1.0)
             : 0.0;
-    final double dailyAverageSpent =
-        currentDay > 0 ? currentSpent / currentDay : 0.0;
-    final double remainingBudget = monthlyBudget - currentSpent;
-    final double safeDailySpend =
-        remainingDays > 0
-            ? (remainingBudget / remainingDays)
-                .clamp(0.0, double.infinity)
-            : 0.0;
-
     // ── Notification badge logic ──────────────────────────────────────────
     final bool hasActiveLoan = allExpenses.any(
       (tx) => tx.category == 'Loan' && tx.isCleared == false,
@@ -533,6 +500,21 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   context, 'Borrow', allExpenses, provider, settings),
               ),
               const SizedBox(height: 16),
+
+              // 2 ── Beneficiaries ───────────────────────────────────────────
+              if (provider.uniqueBeneficiaries.isNotEmpty) ...[
+                _BeneficiariesSection(
+                  uniqueBeneficiaries: provider.uniqueBeneficiaries,
+                  allExpenses: allExpenses,
+                  onSettle: (b) {
+                    provider.settleWithBeneficiary(b);
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('Settled all debts with $b!')),
+                    );
+                  },
+                ),
+                const SizedBox(height: 16),
+              ],
 
               // 4 ── Date Navigation ────────────────────────────────────
               _DateNavRow(
@@ -731,7 +713,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                           size: 20),
                                     ),
                                     title: Text(
-                                      tx.label,
+                                      tx.label + (tx.beneficiary != null ? ' (${tx.beneficiary})' : ''),
                                       style: TextStyle(
                                         fontWeight: FontWeight.bold,
                                         color: cleared
@@ -1189,6 +1171,13 @@ class _DailyLedger extends StatelessWidget {
                   fontWeight: FontWeight.w500,
                 ),
               ),
+              IconButton(
+                onPressed: onAddExpense,
+                icon: Icon(Icons.add_circle, color: primaryTeal),
+                tooltip: 'Add Expense',
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(),
+              ),
             ],
           ),
         ),
@@ -1352,7 +1341,7 @@ class _TransactionCard extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(tx.label,
+                      Text(tx.label + (tx.beneficiary != null ? ' (${tx.beneficiary})' : ''),
                           style: const TextStyle(
                               fontWeight: FontWeight.w700,
                               color: Colors.black87,
@@ -1445,7 +1434,7 @@ class _TransactionCard extends StatelessWidget {
                   color: !isCleared ? iconColor : primaryTeal),
             ),
             title: Text(
-              tx.label,
+              tx.label + (tx.beneficiary != null ? ' (${tx.beneficiary})' : ''),
               style: TextStyle(
                 fontWeight: FontWeight.bold,
                 decoration: isSpecial && isCleared
@@ -1516,6 +1505,137 @@ class _TransactionCard extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+//  BENEFICIARIES SECTION (private widget)
+// ═══════════════════════════════════════════════════════════════════════════════
+class _BeneficiariesSection extends StatelessWidget {
+  final List<String> uniqueBeneficiaries;
+  final List<ExpenseModel> allExpenses;
+  final void Function(String) onSettle;
+
+  const _BeneficiariesSection({
+    required this.uniqueBeneficiaries,
+    required this.allExpenses,
+    required this.onSettle,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'People',
+          style: TextStyle(
+            fontSize: 18,
+            fontWeight: FontWeight.bold,
+            color: Colors.black87,
+          ),
+        ),
+        const SizedBox(height: 12),
+        SizedBox(
+          height: 140,
+          child: ListView.builder(
+            scrollDirection: Axis.horizontal,
+            itemCount: uniqueBeneficiaries.length,
+            itemBuilder: (context, index) {
+              final b = uniqueBeneficiaries[index];
+
+              // Calculate net balance for this beneficiary
+              double netBalance = 0; // + means they owe you (Loan), - means you owe them (Borrow)
+              bool hasActive = false;
+
+              for (final tx in allExpenses) {
+                if (tx.beneficiary == b && !tx.isCleared) {
+                  hasActive = true;
+                  if (tx.category == 'Loan') {
+                    netBalance += tx.remainingAmount;
+                  } else if (tx.category == 'Borrow') {
+                    netBalance -= tx.remainingAmount;
+                  }
+                }
+              }
+
+              if (!hasActive) return const SizedBox.shrink(); // Only show if they have active debts
+
+              final isOwed = netBalance > 0;
+              final isOwing = netBalance < 0;
+              final color = isOwed ? Colors.green.shade600 : (isOwing ? Colors.red.shade600 : Colors.grey.shade600);
+              final String balanceText = netBalance == 0
+                  ? 'Settled'
+                  : (isOwed ? 'Owes you Rs ${netBalance.toStringAsFixed(0)}' : 'You owe Rs ${netBalance.abs().toStringAsFixed(0)}');
+
+              return Container(
+                width: 160,
+                margin: const EdgeInsets.only(right: 12),
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: color.withValues(alpha: 0.2)),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.04),
+                      blurRadius: 8,
+                      offset: const Offset(0, 3),
+                    ),
+                  ],
+                ),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    CircleAvatar(
+                      backgroundColor: color.withValues(alpha: 0.1),
+                      child: Icon(Icons.person, color: color),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      b,
+                      style: const TextStyle(fontWeight: FontWeight.bold),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      balanceText,
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: color,
+                        fontWeight: FontWeight.w600,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                    const Spacer(),
+                    if (netBalance != 0)
+                      SizedBox(
+                        height: 28,
+                        width: double.infinity,
+                        child: OutlinedButton(
+                          style: OutlinedButton.styleFrom(
+                            padding: EdgeInsets.zero,
+                            side: BorderSide(color: color),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                          ),
+                          onPressed: () => onSettle(b),
+                          child: Text(
+                            'Settle',
+                            style: TextStyle(fontSize: 12, color: color),
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+              );
+            },
+          ),
+        ),
+      ],
     );
   }
 }

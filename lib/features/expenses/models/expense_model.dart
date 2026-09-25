@@ -6,6 +6,7 @@ class ExpenseModel {
   final String category;
   final bool isCleared;
   final double amountPaid; // How much has been repaid so far (Borrow/Loan only)
+  final String? beneficiary; // The person you loaned to or borrowed from
 
   ExpenseModel({
     required this.id,
@@ -15,6 +16,7 @@ class ExpenseModel {
     required this.category,
     this.isCleared = true, // Defaults to true unless it is a Pending Loan/Borrow
     this.amountPaid = 0,
+    this.beneficiary,
   });
 
   /// How much is still owed / outstanding
@@ -33,6 +35,7 @@ class ExpenseModel {
       'category': category,
       'isCleared': isCleared ? 1 : 0, // SQLite uses 1 for true, 0 for false
       'amountPaid': amountPaid,
+      'beneficiary': beneficiary,
     };
   }
 
@@ -46,6 +49,7 @@ class ExpenseModel {
       category: map['category'],
       isCleared: map['isCleared'] == 1,
       amountPaid: (map['amountPaid'] as num?)?.toDouble() ?? 0,
+      beneficiary: map['beneficiary'],
     );
   }
 
@@ -58,6 +62,7 @@ class ExpenseModel {
     String? category,
     bool? isCleared,
     double? amountPaid,
+    String? beneficiary,
   }) {
     return ExpenseModel(
       id: id ?? this.id,
@@ -67,6 +72,7 @@ class ExpenseModel {
       category: category ?? this.category,
       isCleared: isCleared ?? this.isCleared,
       amountPaid: amountPaid ?? this.amountPaid,
+      beneficiary: beneficiary ?? this.beneficiary,
     );
   }
 }

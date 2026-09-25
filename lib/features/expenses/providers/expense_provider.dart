@@ -11,6 +11,17 @@ class ExpenseProvider with ChangeNotifier {
   List<ExpenseModel>   get expenses   => _expenses;
   List<RepaymentModel> get repayments => _repayments;
 
+  /// Returns a list of all unique beneficiaries from expenses.
+  List<String> get uniqueBeneficiaries {
+    final set = <String>{};
+    for (final e in _expenses) {
+      if (e.beneficiary != null && e.beneficiary!.isNotEmpty) {
+        set.add(e.beneficiary!);
+      }
+    }
+    return set.toList()..sort();
+  }
+
   // ── Helpers ───────────────────────────────────────────────────────────────
 
   /// All repayments that belong to a specific parent expense.
@@ -141,6 +152,37 @@ class ExpenseProvider with ChangeNotifier {
       notifyListeners();
     } catch (e) {
       debugPrint('DB Error Deleting Repayment: $e');
+      rethrow;
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  //  BENEFICIARY SETTLEMENT
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  /// Settles all active loans and borrows for a specific beneficiary
+  /// by creating a repayment that exactly covers the remaining balance.
+  Future<void> settleWithBeneficiary(String beneficiary) async {
+    try {
+      final activeTx = _expenses.where((e) =>
+          e.beneficiary == beneficiary &&
+          (e.category == 'Loan' || e.category == 'Borrow') &&
+          !e.isCleared).toList();
+
+      for (final tx in activeTx) {
+        final remaining = tx.remainingAmount;
+        if (remaining > 0) {
+          final repayment = RepaymentModel.create(
+            parentId: tx.id,
+            category: tx.category,
+            amount: remaining,
+            date: DateTime.now(),
+          );
+          await addRepayment(repayment); // This internally updates amountPaid and isCleared
+        }
+      }
+    } catch (e) {
+      debugPrint('DB Error Settling with Beneficiary: $e');
       rethrow;
     }
   }

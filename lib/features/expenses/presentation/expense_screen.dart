@@ -20,13 +20,22 @@ class _ExpenseScreenState extends State<ExpenseScreen> {
 
   final TextEditingController _amountController = TextEditingController();
   final TextEditingController _descController = TextEditingController();
+  final TextEditingController _beneficiaryController = TextEditingController();
 
   String _selectedCategory = 'Food';
+  late DateTime _selectedDate;
+
+  @override
+  void initState() {
+    super.initState();
+    _selectedDate = widget.initialDate ?? DateTime.now();
+  }
 
   @override
   void dispose() {
     _amountController.dispose();
     _descController.dispose();
+    _beneficiaryController.dispose();
     super.dispose();
   }
 
@@ -34,13 +43,14 @@ class _ExpenseScreenState extends State<ExpenseScreen> {
     String category,
     String amountStr,
     String description,
+    String beneficiary,
   ) async {
     if (amountStr.isEmpty) return;
 
     final double? amount = double.tryParse(amountStr);
     if (amount == null) return; // Prevent saving if amount is invalid
 
-    final targetDate = widget.initialDate ?? DateTime.now();
+    final targetDate = _selectedDate;
 
     // RULE FOR DEBTS: 
     // - Borrow means you owe someone (unpaid debt). It starts as false (isCleared = false) to show the RED ring.
@@ -58,6 +68,7 @@ class _ExpenseScreenState extends State<ExpenseScreen> {
       amount: amount,
       category: category,
       isCleared: initialClearedStatus, // Applies the Borrow/Loan logic
+      beneficiary: beneficiary.trim().isEmpty ? null : beneficiary.trim(),
     );
 
     try {
@@ -72,6 +83,7 @@ class _ExpenseScreenState extends State<ExpenseScreen> {
       // Unfocus keyboard and clear inputs FIRST
       _amountController.clear();
       _descController.clear();
+      _beneficiaryController.clear();
       FocusScope.of(context).unfocus();
 
       // Clear any existing popups so they don't get stuck in a queue
@@ -125,16 +137,17 @@ class _ExpenseScreenState extends State<ExpenseScreen> {
   Widget build(BuildContext context) {
     // Read live categories and shortcuts from Provider
     final settings = context.watch<SettingsProvider>();
+    final expenseProvider = context.watch<ExpenseProvider>();
     final List<String> categories = settings.categories;
     final List<Map<String, dynamic>> quickAdds = settings.quickAdds;
+    final List<String> uniqueBeneficiaries = expenseProvider.uniqueBeneficiaries;
 
     // Safety check if current selected category was deleted from settings
     if (!categories.contains(_selectedCategory) && categories.isNotEmpty) {
       _selectedCategory = categories.first;
     }
 
-    final DateTime targetDate = widget.initialDate ?? DateTime.now();
-    final String formattedDate = DateFormat('EEEE, MMMM d').format(targetDate);
+    final String formattedDate = DateFormat('EEEE, MMMM d').format(_selectedDate);
 
     return Scaffold(
       backgroundColor: Colors.white,
@@ -275,6 +288,58 @@ class _ExpenseScreenState extends State<ExpenseScreen> {
                   ),
                   const SizedBox(height: 16),
 
+                  if (_selectedCategory == 'Loan' || _selectedCategory == 'Borrow') ...[
+                    Autocomplete<String>(
+                      optionsBuilder: (TextEditingValue textEditingValue) {
+                        if (textEditingValue.text.isEmpty) {
+                          return uniqueBeneficiaries;
+                        }
+                        return uniqueBeneficiaries.where((String option) {
+                          return option
+                              .toLowerCase()
+                              .contains(textEditingValue.text.toLowerCase());
+                        });
+                      },
+                      onSelected: (String selection) {
+                        _beneficiaryController.text = selection;
+                      },
+                      fieldViewBuilder: (context, controller, focusNode,
+                          onEditingComplete) {
+                        // Keep our _beneficiaryController in sync with the internal controller
+                        // if we want, or just use the internal one. Since Autocomplete creates
+                        // its own controller if we don't pass one, we should map them.
+                        // Wait, it's easier to just use the controller provided by fieldViewBuilder
+                        // and assign it to our logic, but we need it in _saveExpense.
+                        // So we listen to it, or just use it.
+                        // Actually, we can just assign the controller's text in onEditingComplete,
+                        // but it's safer to bind our _beneficiaryController as the text editing controller here.
+                        // Actually Autocomplete in Flutter doesn't accept a controller parameter directly
+                        // on the Autocomplete widget, it uses the one in fieldViewBuilder.
+                        return TextFormField(
+                          controller: controller,
+                          focusNode: focusNode,
+                          onEditingComplete: onEditingComplete,
+                          onChanged: (val) => _beneficiaryController.text = val,
+                          decoration: InputDecoration(
+                            labelText: 'Beneficiary / Person',
+                            prefixIcon: Icon(Icons.person, color: primaryTeal),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            focusedBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              borderSide: BorderSide(color: primaryTeal, width: 2),
+                            ),
+                          ),
+                          validator: (value) => value!.trim().isEmpty
+                              ? 'Please enter a person name'
+                              : null,
+                        );
+                      },
+                    ),
+                    const SizedBox(height: 16),
+                  ],
+
                   TextFormField(
                     controller: _descController,
                     decoration: InputDecoration(
@@ -309,6 +374,7 @@ class _ExpenseScreenState extends State<ExpenseScreen> {
                             _selectedCategory,
                             _amountController.text,
                             _descController.text,
+                            _selectedCategory == 'Loan' || _selectedCategory == 'Borrow' ? _beneficiaryController.text : '',
                           );
                         }
                       },
@@ -338,7 +404,7 @@ class _ExpenseScreenState extends State<ExpenseScreen> {
     Color color,
   ) {
     return InkWell(
-      onTap: () => _saveExpense(category, amount, label),
+      onTap: () => _saveExpense(category, amount, label, ''),
       borderRadius: BorderRadius.circular(12),
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 8),

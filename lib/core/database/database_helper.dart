@@ -23,7 +23,7 @@ class DatabaseHelper {
 
     return await openDatabase(
       path,
-      version: 3,         // ← bumped from 2 → 3
+      version: 4,         // ← bumped from 3 → 4
       onCreate: _createDB,
       onUpgrade: _upgradeDB,
     );
@@ -39,7 +39,8 @@ class DatabaseHelper {
       amount REAL NOT NULL,
       category TEXT NOT NULL,
       isCleared INTEGER NOT NULL,
-      amountPaid REAL NOT NULL DEFAULT 0
+      amountPaid REAL NOT NULL DEFAULT 0,
+      beneficiary TEXT
     )
     ''');
 
@@ -75,6 +76,12 @@ class DatabaseHelper {
         FOREIGN KEY (parentId) REFERENCES expenses(id) ON DELETE CASCADE
       )
       ''');
+    }
+    if (oldVersion < 4) {
+      // v3 → v4: Add beneficiary column
+      await db.execute(
+        'ALTER TABLE expenses ADD COLUMN beneficiary TEXT',
+      );
     }
   }
 

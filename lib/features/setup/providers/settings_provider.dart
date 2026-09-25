@@ -4,7 +4,6 @@ import 'dart:convert';
 
 class SettingsProvider with ChangeNotifier {
   double _monthlyBudget = 15000.0;
-  double _idealDailySpend = 500.0;
   List<String> _categories = ['Food', 'Transport', 'Laundry', 'Supplies', 'Bills', 'Loan', 'Borrow', 'Other'];
   List<Map<String, dynamic>> _quickAdds = [
     {'label': '🍳 Breakfast', 'amount': '240', 'category': 'Food', 'colorValue': Colors.orange.value},
@@ -14,7 +13,6 @@ class SettingsProvider with ChangeNotifier {
   ];
 
   double get monthlyBudget => _monthlyBudget;
-  double get idealDailySpend => _idealDailySpend;
   List<String> get categories => _categories;
   List<Map<String, dynamic>> get quickAdds => _quickAdds;
 
@@ -25,7 +23,6 @@ class SettingsProvider with ChangeNotifier {
   Future<void> _loadSettings() async {
     final prefs = await SharedPreferences.getInstance();
     _monthlyBudget = double.tryParse(prefs.getString('monthlyBudget') ?? '15000') ?? 15000.0;
-    _idealDailySpend = double.tryParse(prefs.getString('idealDaily') ?? '500') ?? 500.0;
 
     final savedCats = prefs.getStringList('categories');
     if (savedCats != null) {
@@ -43,18 +40,15 @@ class SettingsProvider with ChangeNotifier {
 
   Future<void> saveSettings({
     required double budget,
-    required double ideal,
     required List<String> cats,
     required List<Map<String, dynamic>> quicks,
   }) async {
     _monthlyBudget = budget;
-    _idealDailySpend = ideal;
     _categories = cats;
     _quickAdds = quicks;
 
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString('monthlyBudget', budget.toString());
-    await prefs.setString('idealDaily', ideal.toString());
     await prefs.setStringList('categories', cats);
     await prefs.setString('quickAdds', json.encode(quicks));
 

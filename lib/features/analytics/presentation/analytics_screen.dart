@@ -58,7 +58,6 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
     final allExpenses = provider.expenses;
     final settings = context.watch<SettingsProvider>();
     final double budgetLimit = settings.monthlyBudget;
-    final double idealDaily = settings.idealDailySpend;
 
     Map<String, Map<String, dynamic>> monthlyData = {};
     String currentMonthKey = DateFormat('MMMM yyyy').format(DateTime.now());
@@ -69,13 +68,12 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
       'date': DateTime(DateTime.now().year, DateTime.now().month, 1),
     };
 
-    final allRepayments = provider.repayments;
 
     // 1. Add origin transactions
     for (var tx in allExpenses) {
       double contribution = 0.0;
-      if (tx.category == 'Borrow') {
-        contribution = 0.0; 
+      if (tx.category == 'Borrow' || tx.category == 'Loan') {
+        contribution = 0.0; // Industry standard: Loans and Borrows are transfers, not expenses.
       } else {
         contribution = tx.amount;
       }
@@ -98,30 +96,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
     }
 
     // 2. Add repayments
-    for (var r in allRepayments) {
-      double contribution = 0.0;
-      if (r.category == 'Borrow') {
-        contribution = r.amount; // Cash out
-      } else if (r.category == 'Loan') {
-        contribution = -r.amount; // Cash in
-      }
-      if (contribution == 0) continue;
-
-      String monthKey = DateFormat('MMMM yyyy').format(r.date);
-      
-      if (!monthlyData.containsKey(monthKey)) {
-        monthlyData[monthKey] = {
-          'totalSpent': 0.0,
-          'categories': <String, double>{},
-          'date': DateTime(r.date.year, r.date.month, 1),
-        };
-      }
-      
-      monthlyData[monthKey]!['totalSpent'] += contribution;
-      
-      Map<String, double> cats = monthlyData[monthKey]!['categories'];
-      cats[r.category] = (cats[r.category] ?? 0.0) + contribution;
-    }
+    // (Industry standard: Repayments are asset transfers, they don't affect spent or categories)
 
     // Clean up negative/zero categories after refunds
     for (var monthData in monthlyData.values) {
@@ -147,9 +122,35 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
     
     double avgDaily = daysPassed > 0 ? totalSpent / daysPassed : 0.0;
     
-    double remainingBudget = budgetLimit - totalSpent;
-    int remainingDays = daysInMonth - (isCurrentMonth ? DateTime.now().day : daysInMonth);
-    double safeDailySpend = remainingDays > 0 ? (remainingBudget / remainingDays).clamp(0.0, double.infinity) : 0.0;
+    double totalAllTimeSpent = 0.0;
+    for (var monthData in monthlyData.values) {
+      totalAllTimeSpent += monthData['totalSpent'] as double;
+    }
+    double avgMonthlySpent = monthlyData.isEmpty ? 0.0 : totalAllTimeSpent / monthlyData.length;
+
+    final DateTime now = DateTime.now();
+    final List<Map<String, dynamic>> last7DaysData = List.generate(7, (index) {
+      final date = now.subtract(Duration(days: 6 - index));
+      return {'date': date, 'spent': 0.0};
+    });
+
+    for (var tx in allExpenses) {
+      if (tx.category == 'Borrow' || tx.category == 'Loan') continue;
+      
+      for (var i = 0; i < 7; i++) {
+        final bucketDate = last7DaysData[i]['date'] as DateTime;
+        if (bucketDate.year == tx.date.year && bucketDate.month == tx.date.month && bucketDate.day == tx.date.day) {
+          last7DaysData[i]['spent'] += tx.amount;
+          break;
+        }
+      }
+    }
+
+    double maxSpend7Days = 0.0;
+    for (var dayData in last7DaysData) {
+      if (dayData['spent'] > maxSpend7Days) maxSpend7Days = dayData['spent'];
+    }
+    if (maxSpend7Days == 0) maxSpend7Days = 100;
 
     final Map<String, Color> catColors = {
       'Food': primaryTeal,
@@ -252,54 +253,58 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
               children: [
                 Expanded(
                   child: _buildInfoBox(
-                    'Avg Spent',
+                    'Average Daily Spent',
                     'Rs ${avgDaily.toStringAsFixed(0)}',
                     primaryTeal.withValues(alpha: 0.1),
                     primaryTeal,
                   ),
                 ),
-                const SizedBox(width: 8),
+                const SizedBox(width: 12),
                 Expanded(
                   child: _buildInfoBox(
-                    'Ideal Daily',
-                    'Rs ${idealDaily.toStringAsFixed(0)}',
+                    'Average Monthly Spent',
+                    'Rs ${avgMonthlySpent.toStringAsFixed(0)}',
                     Colors.purple.withValues(alpha: 0.1),
                     Colors.purple,
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: _buildInfoBox(
-                    'Safe to Spend',
-                    'Rs ${safeDailySpend.toStringAsFixed(0)}',
-                    Colors.orange.withValues(alpha: 0.1),
-                    Colors.orange.shade800,
                   ),
                 ),
               ],
             ),
             const SizedBox(height: 32),
 
-            const Text('Daily Average vs Ideal Limit', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.black54)),
+            const Text('Last 7 Days', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.black54)),
             const SizedBox(height: 24),
             SizedBox(
-              height: 160,
+              height: 180,
               child: BarChart(
                 BarChartData(
-                  alignment: BarChartAlignment.spaceEvenly,
-                  maxY: (avgDaily > idealDaily ? avgDaily : idealDaily) * 1.2,
-                  barTouchData: BarTouchData(enabled: false),
+                  alignment: BarChartAlignment.spaceAround,
+                  maxY: maxSpend7Days * 1.2,
+                  barTouchData: BarTouchData(
+                    enabled: true,
+                    touchTooltipData: BarTouchTooltipData(
+                      getTooltipColor: (group) => Colors.black87,
+                      getTooltipItem: (group, groupIndex, rod, rodIndex) {
+                        return BarTooltipItem(
+                          'Rs ${rod.toY.toStringAsFixed(0)}',
+                          const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                        );
+                      },
+                    ),
+                  ),
                   titlesData: FlTitlesData(
                     show: true,
                     bottomTitles: AxisTitles(
                       sideTitles: SideTitles(
                         showTitles: true,
                         getTitlesWidget: (double value, TitleMeta meta) {
-                          switch (value.toInt()) {
-                            case 0: return const Padding(padding: EdgeInsets.only(top: 8), child: Text('Actual Avg', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)));
-                            case 1: return const Padding(padding: EdgeInsets.only(top: 8), child: Text('Ideal Limit', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)));
-                            default: return const Text('');
-                          }
+                          final date = last7DaysData[value.toInt()]['date'] as DateTime;
+                          final isToday = date.year == now.year && date.month == now.month && date.day == now.day;
+                          final text = isToday ? 'Today' : DateFormat('EEE').format(date);
+                          return Padding(
+                            padding: const EdgeInsets.only(top: 8),
+                            child: Text(text, style: TextStyle(fontSize: 10, fontWeight: isToday ? FontWeight.bold : FontWeight.normal, color: isToday ? primaryTeal : Colors.black54)),
+                          );
                         },
                       ),
                     ),
@@ -309,34 +314,21 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
                   ),
                   gridData: const FlGridData(show: false),
                   borderData: FlBorderData(show: false),
-                  barGroups: [
-                    BarChartGroupData(x: 0, barRods: [
-                      BarChartRodData(
-                        toY: avgDaily, 
-                        color: avgDaily > idealDaily ? Colors.redAccent : primaryTeal, 
-                        width: 32, 
-                        borderRadius: const BorderRadius.vertical(top: Radius.circular(6)),
-                      )
-                    ]),
-                    BarChartGroupData(x: 1, barRods: [
-                      BarChartRodData(
-                        toY: idealDaily, 
-                        color: Colors.purple.withValues(alpha: 0.6), 
-                        width: 32, 
-                        borderRadius: const BorderRadius.vertical(top: Radius.circular(6)),
-                      )
-                    ]),
-                  ],
+                  barGroups: List.generate(7, (index) {
+                    final spent = last7DaysData[index]['spent'] as double;
+                    return BarChartGroupData(
+                      x: index,
+                      barRods: [
+                        BarChartRodData(
+                          toY: spent,
+                          color: primaryTeal,
+                          width: 16,
+                          borderRadius: const BorderRadius.vertical(top: Radius.circular(4)),
+                        )
+                      ],
+                    );
+                  }),
                 ),
-              ),
-            ),
-            const SizedBox(height: 8),
-            Center(
-              child: Text(
-                avgDaily > idealDaily 
-                  ? 'Over budget by Rs ${(avgDaily - idealDaily).toStringAsFixed(0)} per day!' 
-                  : 'Saving Rs ${(idealDaily - avgDaily).toStringAsFixed(0)} per day under ideal tracking.',
-                style: TextStyle(fontSize: 12, fontWeight: FontWeight.w500, color: avgDaily > idealDaily ? Colors.redAccent : Colors.green),
               ),
             ),
             const SizedBox(height: 32),

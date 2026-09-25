@@ -14,7 +14,6 @@ class _SetupScreenState extends State<SetupScreen> {
   final Color primaryTeal = const Color(0xFF2EC4B6);
   
   final TextEditingController _budgetController = TextEditingController();
-  final TextEditingController _idealDailyController = TextEditingController();
 
   List<String> _categories = [];
   List<Map<String, dynamic>> _quickAdds = [];
@@ -26,7 +25,6 @@ class _SetupScreenState extends State<SetupScreen> {
       final provider = Provider.of<SettingsProvider>(context, listen: false);
       setState(() {
         _budgetController.text = provider.monthlyBudget.toStringAsFixed(0);
-        _idealDailyController.text = provider.idealDailySpend.toStringAsFixed(0);
         _categories = List.from(provider.categories);
         _quickAdds = List.from(provider.quickAdds);
       });
@@ -36,7 +34,6 @@ class _SetupScreenState extends State<SetupScreen> {
   void _saveData() {
     Provider.of<SettingsProvider>(context, listen: false).saveSettings(
       budget: double.tryParse(_budgetController.text) ?? 15000.0,
-      ideal: double.tryParse(_idealDailyController.text) ?? 500.0,
       cats: _categories,
       quicks: _quickAdds,
     );
@@ -298,18 +295,6 @@ class _SetupScreenState extends State<SetupScreen> {
                 border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                 focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: primaryTeal, width: 2)),
                 prefixIcon: Icon(Icons.account_balance_wallet, color: primaryTeal),
-              ),
-              keyboardType: TextInputType.number,
-            ),
-            const SizedBox(height: 16),
-
-            TextFormField(
-              controller: _idealDailyController,
-              decoration: InputDecoration(
-                labelText: 'Ideal Daily Spend (Rs)',
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: primaryTeal, width: 2)),
-                prefixIcon: Icon(Icons.track_changes, color: primaryTeal),
               ),
               keyboardType: TextInputType.number,
             ),
