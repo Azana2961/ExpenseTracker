@@ -94,20 +94,41 @@ class ScaffoldWithNavBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Map visible tab indices to shell branch indices.
+    // Tab 0 = Dashboard (branch 0), Tab 1 = Add (standalone /expense route),
+    // Tab 2 = Analytics (branch 1), Tab 3 = Setup (branch 2).
+    int shellBranchFor(int tabIndex) {
+      if (tabIndex <= 0) return 0;
+      if (tabIndex == 2) return 1;
+      return 2;
+    }
+
+    // The "selected" indicator for the nav bar. Expense tab (1) is never
+    // "active" in the shell sense, so always highlight the last shell branch.
+    final selectedIndex = navigationShell.currentIndex == 0
+        ? 0
+        : navigationShell.currentIndex == 1
+            ? 2
+            : navigationShell.currentIndex == 2
+                ? 3
+                : 0;
+
     return Scaffold(
       body: FadeIndexedStack(
         index: navigationShell.currentIndex,
         children: children,
       ),
       bottomNavigationBar: NavigationBar(
-        selectedIndex: navigationShell.currentIndex,
+        selectedIndex: selectedIndex,
         onDestinationSelected: (index) {
           if (index == 1) {
-            context.go('/expense', extra: DateTime.now());
+            // Expense is a standalone top-level route — push it so the shell
+            // stays alive behind it and the back button returns to the shell.
+            context.push('/expense', extra: DateTime.now());
           } else {
             navigationShell.goBranch(
-              index,
-              initialLocation: index == navigationShell.currentIndex,
+              shellBranchFor(index),
+              initialLocation: shellBranchFor(index) == navigationShell.currentIndex,
             );
           }
         },
@@ -129,6 +150,15 @@ final GoRouter _router = GoRouter(
       path: '/splash',
       builder: (context, state) => const SplashScreen(),
     ),
+    // ── Top-level expense route (NOT inside StatefulShellRoute) ─────────────
+    // This is intentionally a standalone route so the screen is rebuilt fresh
+    // every time it is pushed, which guarantees `initialDate` from `extra` is
+    // always picked up — even when navigating from a past day on the dashboard.
+    GoRoute(
+      path: '/expense',
+      builder: (context, state) =>
+          ExpenseScreen(initialDate: state.extra as DateTime?),
+    ),
     StatefulShellRoute(
       builder: (context, state, navigationShell) => navigationShell,
       navigatorContainerBuilder: (context, navigationShell, children) {
@@ -136,13 +166,13 @@ final GoRouter _router = GoRouter(
       },
       branches: [
         StatefulShellBranch(routes: [GoRoute(path: '/dashboard', builder: (context, state) => const DashboardScreen())]),
-        StatefulShellBranch(routes: [GoRoute(path: '/expense', builder: (context, state) => ExpenseScreen(initialDate: state.extra as DateTime?))]), // Fixed the initialDate parameter
         StatefulShellBranch(routes: [GoRoute(path: '/analytics', builder: (context, state) => const AnalyticsScreen())]),
         StatefulShellBranch(routes: [GoRoute(path: '/setup', builder: (context, state) => const SetupScreen())]),
       ],
     ),
   ],
 );
+
 
 class HostelExpenseApp extends StatefulWidget {
   const HostelExpenseApp({super.key});

@@ -32,6 +32,29 @@ class ExpenseProvider with ChangeNotifier {
   double totalRepaidFor(String parentId) =>
       repaymentsFor(parentId).fold(0.0, (sum, r) => sum + r.amount);
 
+  /// Returns all Loan/Borrow transactions for [beneficiary] grouped by calendar
+  /// date (year-month-day), sorted newest date first.
+  ///
+  /// Each entry: key = date-only DateTime, value = list of ExpenseModels that
+  /// originated on that day.  This powers the "collection" view in the
+  /// Person Details sheet where same-day entries are visually stacked together.
+  Map<DateTime, List<ExpenseModel>> groupedDailyTransactionsFor(
+      String beneficiary) {
+    final txs = _expenses
+        .where((e) =>
+            e.beneficiary == beneficiary &&
+            (e.category == 'Loan' || e.category == 'Borrow'))
+        .toList()
+      ..sort((a, b) => b.date.compareTo(a.date)); // newest first
+
+    final Map<DateTime, List<ExpenseModel>> grouped = {};
+    for (final tx in txs) {
+      final dayKey = DateTime(tx.date.year, tx.date.month, tx.date.day);
+      grouped.putIfAbsent(dayKey, () => []).add(tx);
+    }
+    return grouped;
+  }
+
   // ═══════════════════════════════════════════════════════════════════════════
   //  LOAD
   // ═══════════════════════════════════════════════════════════════════════════

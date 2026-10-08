@@ -7,6 +7,8 @@ import '../../expenses/providers/expense_provider.dart';
 import '../../setup/providers/settings_provider.dart';
 import '../../expenses/models/expense_model.dart';
 import '../../expenses/models/repayment_model.dart';
+import 'widgets/receipt_widget.dart';
+import 'widgets/global_receipt_widget.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -137,9 +139,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Text(
-                            'Record Payment',
-                            style: TextStyle(
+                          Text(
+                            tx.category == 'Loan' ? 'Receive Repayment' : 'Record Payment',
+                            style: const TextStyle(
                                 fontSize: 18,
                                 fontWeight: FontWeight.bold),
                           ),
@@ -215,7 +217,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   style: const TextStyle(
                       fontSize: 20, fontWeight: FontWeight.bold),
                   decoration: InputDecoration(
-                    labelText: 'Payment Amount',
+                    labelText: tx.category == 'Loan' ? 'Amount Received' : 'Payment Amount',
                     prefixText: 'Rs ',
                     prefixStyle: TextStyle(
                         color: accentColor,
@@ -249,7 +251,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                               tx.remainingAmount.toStringAsFixed(0);
                         },
                         child: Text(
-                          'Pay Full',
+                          tx.category == 'Loan' ? 'Receive Full' : 'Pay Full',
                           style: TextStyle(
                               color: accentColor,
                               fontWeight: FontWeight.bold),
@@ -285,9 +287,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
                           provider.addRepayment(repayment);
                           Navigator.pop(ctx);
                         },
-                        child: const Text(
-                          'Confirm Payment',
-                          style: TextStyle(
+                        child: Text(
+                          tx.category == 'Loan' ? 'Confirm Receipt' : 'Confirm Payment',
+                          style: const TextStyle(
                               fontWeight: FontWeight.bold, fontSize: 15),
                         ),
                       ),
@@ -528,7 +530,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 onRecordPayment: (tx) =>
                     _showRecordPaymentSheet(context, tx, provider),
                 onAddExpense: () =>
-                    context.go('/expense', extra: _selectedDate),
+                    context.push('/expense', extra: _selectedDate),
               ),
             ],
           ),
@@ -647,120 +649,30 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                   : Icons.account_balance_wallet,
                             ),
                           )
-                        : ListView.builder(
-                            controller: scrollCtrl,
-                            itemCount: items.length,
-                            itemBuilder: (_, i) {
-                              final tx = items[i];
-                              final cleared = tx.isCleared;
-                              return Padding(
-                                padding:
-                                    const EdgeInsets.only(bottom: 10),
-                                child: Container(
-                                  decoration: BoxDecoration(
-                                    color: cleared
-                                        ? Theme.of(ctx).colorScheme.surface
-                                        : bgColor,
-                                    borderRadius:
-                                        BorderRadius.circular(14),
-                                    border: Border.all(
-                                        color: cleared
-                                            ? Theme.of(ctx).dividerColor
-                                            : borderColor),
-                                    boxShadow: [
-                                      BoxShadow(
-                                        color: Colors.black
-                                            .withValues(alpha: 0.03),
-                                        blurRadius: 8,
-                                        offset: const Offset(0, 3),
-                                      ),
-                                    ],
-                                  ),
-                                  child: ListTile(
-                                    contentPadding:
-                                        const EdgeInsets.symmetric(
-                                            horizontal: 16,
-                                            vertical: 6),
-                                    onTap: !cleared
-                                        ? () {
-                                            Navigator.pop(ctx);
-                                            _showRecordPaymentSheet(
-                                                context,
-                                                tx,
-                                                provider);
-                                          }
-                                        : null,
-                                    leading: CircleAvatar(
-                                      backgroundColor:
-                                          cleared
-                                              ? accentColor
-                                                  .withValues(alpha: 0.1)
-                                              : accentColor
-                                                  .withValues(alpha: 0.2),
-                                      child: Icon(
-                                          _getCategoryIcon(tx.category),
-                                          color: accentColor,
-                                          size: 20),
-                                    ),
-                                    title: Text(
-                                      tx.label + (tx.beneficiary != null ? ' (${tx.beneficiary})' : ''),
-                                      style: TextStyle(
-                                        fontWeight: FontWeight.bold,
-                                        color: cleared
-                                            ? Theme.of(ctx).colorScheme.onSurface.withValues(alpha: 0.4)
-                                            : Theme.of(ctx).colorScheme.onSurface,
-                                        decoration: cleared
-                                            ? TextDecoration.lineThrough
-                                            : null,
-                                      ),
-                                    ),
-                                    subtitle: Text(
-                                      cleared
-                                          ? '${DateFormat('MMM d').format(tx.date)} • Cleared'
-                                          : tx.isPartiallyPaid
-                                              ? '${DateFormat('MMM d').format(tx.date)} • Rs ${tx.amountPaid.toStringAsFixed(0)} paid'
-                                              : '${DateFormat('MMM d').format(tx.date)} • Tap to pay',
-                                      style: TextStyle(
-                                          fontSize: 12,
-                                          color: cleared
-                                              ? Colors.grey.shade400
-                                              : accentColor,
-                                          fontWeight: cleared
-                                              ? FontWeight.normal
-                                              : FontWeight.w600),
-                                    ),
-                                    trailing: Column(
-                                      mainAxisAlignment:
-                                          MainAxisAlignment.center,
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.end,
-                                      children: [
-                                        Text(
-                                          cleared
-                                              ? 'Rs ${tx.amount.toStringAsFixed(0)}'
-                                              : '⏳ Rs ${tx.remainingAmount.toStringAsFixed(0)}',
-                                          style: TextStyle(
-                                            fontWeight: FontWeight.bold,
-                                            color: accentColor,
-                                            fontSize: 15,
-                                          ),
-                                        ),
-                                        if (!cleared &&
-                                            tx.isPartiallyPaid)
-                                          Text(
-                                            'of Rs ${tx.amount.toStringAsFixed(0)}',
-                                            style: TextStyle(
-                                                fontSize: 10,
-                                                color: Colors.grey
-                                                    .shade500),
-                                          ),
-                                      ],
-                                    ),
-                                  ),
-                                ),
+                        : (() {
+                              final Map<String, List<ExpenseModel>> grouped = {};
+                              for (final tx in items) {
+                                final key = tx.beneficiary?.isNotEmpty == true ? tx.beneficiary! : 'Unknown';
+                                grouped.putIfAbsent(key, () => []).add(tx);
+                              }
+                              final groupedKeys = grouped.keys.toList();
+                              return ListView.builder(
+                                controller: scrollCtrl,
+                                itemCount: groupedKeys.length,
+                                itemBuilder: (_, i) {
+                                  final beneficiary = groupedKeys[i];
+                                  final txs = grouped[beneficiary]!;
+                                  return _BeneficiaryCollectionCard(
+                                    beneficiary: beneficiary,
+                                    transactions: txs,
+                                    onRecordPayment: (tx) {
+                                      Navigator.pop(ctx);
+                                      _showRecordPaymentSheet(context, tx, provider);
+                                    },
+                                  );
+                                },
                               );
-                            },
-                          ),
+                            })(),
                   ),
                   const SizedBox(height: 12),
                 ],
@@ -902,110 +814,141 @@ class _DashboardScreenState extends State<DashboardScreen> {
       backgroundColor: Colors.transparent,
       builder: (ctx) {
         return Container(
-          height: MediaQuery.of(context).size.height * 0.9,
+          height: MediaQuery.of(context).size.height * 0.92,
           decoration: BoxDecoration(
             color: Theme.of(context).scaffoldBackgroundColor,
             borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
           ),
           child: Column(
             children: [
+              // ── Header ──────────────────────────────────────────────
               Container(
-                padding: const EdgeInsets.all(16),
+                padding: const EdgeInsets.fromLTRB(20, 12, 12, 16),
                 decoration: BoxDecoration(
                   color: Theme.of(context).cardColor,
                   borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
                 ),
                 child: Column(
                   children: [
-                    Container(width: 40, height: 4, decoration: BoxDecoration(color: Colors.grey.withValues(alpha: 0.3), borderRadius: BorderRadius.circular(2))),
-                    const SizedBox(height: 16),
+                    Container(
+                      width: 40, height: 4,
+                      decoration: BoxDecoration(
+                        color: Colors.grey.withValues(alpha: 0.3),
+                        borderRadius: BorderRadius.circular(2),
+                      ),
+                    ),
+                    const SizedBox(height: 14),
                     Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Text('$person Details', style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
-                        IconButton(icon: const Icon(Icons.close), onPressed: () => Navigator.pop(ctx)),
+                        CircleAvatar(
+                          radius: 22,
+                          backgroundColor: const Color(0xFF2EC4B6).withValues(alpha: 0.15),
+                          child: Text(
+                            person.isNotEmpty ? person[0].toUpperCase() : '?',
+                            style: const TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 20,
+                              color: Color(0xFF2EC4B6),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 14),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                person,
+                                style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                              ),
+                              const Text(
+                                'Transaction History',
+                                style: TextStyle(fontSize: 12, color: Colors.grey),
+                              ),
+                            ],
+                          ),
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.close),
+                          onPressed: () => Navigator.pop(ctx),
+                        ),
                       ],
                     ),
                   ],
                 ),
               ),
+
+              // ── Body ────────────────────────────────────────────────
               Expanded(
                 child: Consumer<ExpenseProvider>(
-                  builder: (context, currentProvider, child) {
-                    final activeLoans = currentProvider.expenses.where((e) => e.beneficiary == person && e.category == 'Loan' && !e.isCleared).toList();
-                    final activeBorrows = currentProvider.expenses.where((e) => e.beneficiary == person && e.category == 'Borrow' && !e.isCleared).toList();
-                    
-                    double sumLoans = activeLoans.fold(0.0, (sum, tx) => sum + tx.remainingAmount);
-                    double sumBorrows = activeBorrows.fold(0.0, (sum, tx) => sum + tx.remainingAmount);
+                  builder: (context, currentProvider, _) {
+                    // ── Net balance calculation ──────────────────────
+                    final allPersonTx = currentProvider.expenses.where(
+                      (e) => e.beneficiary == person &&
+                             (e.category == 'Loan' || e.category == 'Borrow'),
+                    ).toList();
+
+                    final activeTx = allPersonTx.where((e) => !e.isCleared).toList();
+                    double sumLoans   = activeTx.where((e) => e.category == 'Loan')
+                        .fold(0.0, (s, e) => s + e.remainingAmount);
+                    double sumBorrows = activeTx.where((e) => e.category == 'Borrow')
+                        .fold(0.0, (s, e) => s + e.remainingAmount);
                     double net = sumLoans - sumBorrows;
 
+                    // ── Grouped data ─────────────────────────────────
+                    final grouped = currentProvider.groupedDailyTransactionsFor(person);
+                    final sortedDays = grouped.keys.toList()
+                      ..sort((a, b) => b.compareTo(a)); // newest first
+
+                    if (allPersonTx.isEmpty) {
+                      return const Center(
+                        child: Text(
+                          'No transactions yet.',
+                          style: TextStyle(color: Colors.grey),
+                        ),
+                      );
+                    }
+
                     return ListView(
-                      padding: const EdgeInsets.all(16),
+                      padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
                       children: [
-                        Card(
-                          child: Padding(
-                            padding: const EdgeInsets.all(16),
-                            child: Column(
-                              children: [
-                                const Text('Net Balance', style: TextStyle(fontSize: 16)),
-                                const SizedBox(height: 8),
-                                Text(
-                                  net > 0 ? 'Owes you Rs ${net.toStringAsFixed(0)}' :
-                                  net < 0 ? 'You owe Rs ${net.abs().toStringAsFixed(0)}' : 'Settled',
-                                  style: TextStyle(
-                                    fontSize: 24,
-                                    fontWeight: FontWeight.bold,
-                                    color: net > 0 ? Colors.green : net < 0 ? Colors.red : Colors.grey,
-                                  ),
-                                ),
-                                if (net != 0) ...[
-                                  const SizedBox(height: 16),
-                                  ElevatedButton(
-                                    style: ElevatedButton.styleFrom(
-                                      minimumSize: const Size(double.infinity, 48),
-                                      backgroundColor: const Color(0xFF10B981),
-                                      foregroundColor: Colors.white,
-                                    ),
-                                    onPressed: () async {
-                                      await currentProvider.netSettleBeneficiary(person);
-                                      if (net > 0) {
-                                          // If net > 0, they still owe us, we can settle the rest via regular settle
-                                          await currentProvider.settleWithBeneficiary(person);
-                                      } else {
-                                          // If net < 0, we owe them, we can settle the rest
-                                          await currentProvider.settleWithBeneficiary(person);
-                                      }
-                                      if (context.mounted) {
-                                        ScaffoldMessenger.of(context).showSnackBar(
-                                          const SnackBar(content: Text('Balances settled!')),
-                                        );
-                                      }
-                                    },
-                                    child: const Text('Settle Up (Net Balances)'),
-                                  ),
-                                ]
-                              ],
+                        // ── Net Balance Summary Card ─────────────────
+                        _PersonBalanceCard(
+                          net: net,
+                          sumLoans: sumLoans,
+                          sumBorrows: sumBorrows,
+                          person: person,
+                          provider: currentProvider,
+                          activeTx: activeTx,
+                          onSettled: () => Navigator.pop(ctx),
+                        ),
+                        const SizedBox(height: 20),
+
+                        // ── Section label ────────────────────────────
+                        Padding(
+                          padding: const EdgeInsets.only(left: 4, bottom: 10),
+                          child: Text(
+                            'All Transactions',
+                            style: TextStyle(
+                              fontSize: 15,
+                              fontWeight: FontWeight.bold,
+                              color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7),
                             ),
                           ),
                         ),
-                        const SizedBox(height: 24),
-                        const Text('Active Loans (They owe you)', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                        const SizedBox(height: 8),
-                        if (activeLoans.isEmpty) const Text('No active loans.'),
-                        ...activeLoans.map((tx) => ListTile(
-                          title: Text(tx.label),
-                          subtitle: Text('Remaining: Rs ${tx.remainingAmount.toStringAsFixed(0)}'),
-                          trailing: Text('Rs ${tx.amount.toStringAsFixed(0)}'),
-                        )),
-                        const SizedBox(height: 24),
-                        const Text('Active Borrows (You owe them)', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                        const SizedBox(height: 8),
-                        if (activeBorrows.isEmpty) const Text('No active borrows.'),
-                        ...activeBorrows.map((tx) => ListTile(
-                          title: Text(tx.label),
-                          subtitle: Text('Remaining: Rs ${tx.remainingAmount.toStringAsFixed(0)}'),
-                          trailing: Text('Rs ${tx.amount.toStringAsFixed(0)}'),
-                        )),
+
+                        // ── Day-grouped collection tiles ─────────────
+                        ...sortedDays.map((day) {
+                          final dayTxs = grouped[day]!;
+                          return _DayCollectionCard(
+                            day: day,
+                            transactions: dayTxs,
+                            onRecordPayment: (tx) {
+                              Navigator.pop(ctx);
+                              _showRecordPaymentSheet(context, tx, provider);
+                            },
+                          );
+                        }),
                       ],
                     );
                   },
@@ -1017,12 +960,623 @@ class _DashboardScreenState extends State<DashboardScreen> {
       },
     );
   }
+} // end _DashboardScreenState
+
+// ═══════════════════════════════════════════════════════════════════════════════
+//  PERSON BALANCE CARD  (net summary + settle button in person details sheet)
+// ═══════════════════════════════════════════════════════════════════════════════
+class _PersonBalanceCard extends StatelessWidget {
+  final double net;
+  final double sumLoans;
+  final double sumBorrows;
+  final String person;
+  final ExpenseProvider provider;
+  final List<ExpenseModel> activeTx;
+  final VoidCallback onSettled;
+
+  const _PersonBalanceCard({
+    required this.net,
+    required this.sumLoans,
+    required this.sumBorrows,
+    required this.person,
+    required this.provider,
+    required this.activeTx,
+    required this.onSettled,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final netColor = net > 0
+        ? Colors.green.shade600
+        : net < 0
+            ? Colors.red.shade600
+            : Colors.grey.shade500;
+
+    final netLabel = net > 0
+        ? 'Owes you Rs ${net.toStringAsFixed(0)}'
+        : net < 0
+            ? 'You owe Rs ${net.abs().toStringAsFixed(0)}'
+            : '✅ All Settled';
+
+    return Container(
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: netColor.withValues(alpha: 0.07),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: netColor.withValues(alpha: 0.25)),
+      ),
+      child: Column(
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text('Loans (they owe)',
+                  style: TextStyle(color: Colors.grey, fontSize: 13)),
+              Text(
+                'Rs ${sumLoans.toStringAsFixed(0)}',
+                style: TextStyle(color: Colors.green.shade600, fontWeight: FontWeight.w600),
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text('Borrows (you owe)',
+                  style: TextStyle(color: Colors.grey, fontSize: 13)),
+              Text(
+                'Rs ${sumBorrows.toStringAsFixed(0)}',
+                style: TextStyle(color: Colors.red.shade600, fontWeight: FontWeight.w600),
+              ),
+            ],
+          ),
+          const Divider(height: 20),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text('Net Balance',
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+              Text(
+                netLabel,
+                style: TextStyle(color: netColor, fontWeight: FontWeight.bold, fontSize: 15),
+              ),
+            ],
+          ),
+          if (net != 0) ...[
+            const SizedBox(height: 14),
+            Row(
+              children: [
+                Expanded(
+                  child: ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: netColor,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      elevation: 0,
+                    ),
+                    onPressed: () async {
+                      if (sumLoans > 0 && sumBorrows > 0) {
+                        await provider.netSettleBeneficiary(person);
+                        if (context.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text('Balances netted out for $person!'),
+                              backgroundColor: Colors.green.shade700,
+                              behavior: SnackBarBehavior.floating,
+                            ),
+                          );
+                        }
+                      } else {
+                        await provider.settleWithBeneficiary(person);
+                        if (context.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text('All balances with $person settled!'),
+                              backgroundColor: Colors.green.shade700,
+                              behavior: SnackBarBehavior.floating,
+                            ),
+                          );
+                        }
+                      }
+                      if (context.mounted) onSettled();
+                    },
+                    child: const Text('Settle Up',
+                        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Container(
+                  decoration: BoxDecoration(
+                    color: netColor.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: IconButton(
+                    icon: Icon(Icons.receipt_long, color: netColor),
+                    tooltip: 'Global Receipt',
+                    onPressed: () {
+                      showDialog(
+                        context: context,
+                        builder: (ctx) => Material(
+                          color: Colors.transparent,
+                          child: GestureDetector(
+                            behavior: HitTestBehavior.opaque,
+                            onTap: () => Navigator.pop(ctx),
+                            child: Center(
+                              child: GestureDetector(
+                                onTap: () {}, // Do not dismiss when tapping the receipt itself
+                                child: GlobalReceiptWidget(
+                                  person: person,
+                                  netBalance: net,
+                                  activeTx: activeTx,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+//  DAY COLLECTION CARD  (expandable grouped transactions for one calendar day)
+// ═══════════════════════════════════════════════════════════════════════════════
+class _DayCollectionCard extends StatefulWidget {
+  final DateTime day;
+  final List<ExpenseModel> transactions;
+  final void Function(ExpenseModel) onRecordPayment;
+
+  const _DayCollectionCard({
+    required this.day,
+    required this.transactions,
+    required this.onRecordPayment,
+  });
+
+  @override
+  State<_DayCollectionCard> createState() => _DayCollectionCardState();
+}
+
+class _DayCollectionCardState extends State<_DayCollectionCard> {
+  bool _expanded = false;
+
+  String _dayLabel(DateTime day) {
+    final today = DateTime.now();
+    final todayOnly = DateTime(today.year, today.month, today.day);
+    final yesterday = todayOnly.subtract(const Duration(days: 1));
+    if (day == todayOnly) return 'Today';
+    if (day == yesterday) return 'Yesterday';
+    return DateFormat('EEEE, MMM d').format(day);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    double dayLoanTotal = 0;
+    double dayBorrowTotal = 0;
+    int pendingCount = 0;
+
+    for (final tx in widget.transactions) {
+      if (tx.category == 'Loan') dayLoanTotal += tx.amount;
+      if (tx.category == 'Borrow') dayBorrowTotal += tx.amount;
+      if (!tx.isCleared) pendingCount++;
+    }
+
+    final bool hasLoans = dayLoanTotal > 0;
+    final bool hasBorrows = dayBorrowTotal > 0;
+    final bool hasPending = pendingCount > 0;
+
+    final Color headerAccent = hasBorrows && !hasLoans
+        ? Colors.red.shade600
+        : hasLoans && !hasBorrows
+            ? Colors.green.shade600
+            : const Color(0xFF2EC4B6);
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.surface,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: hasPending
+              ? headerAccent.withValues(alpha: 0.3)
+              : Theme.of(context).dividerColor,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.04),
+            blurRadius: 8,
+            offset: const Offset(0, 3),
+          ),
+        ],
+      ),
+      child: Column(
+        children: [
+          // ── Day header (always visible) ───────────────────────────
+          InkWell(
+            onTap: () => setState(() => _expanded = !_expanded),
+            borderRadius: BorderRadius.circular(16),
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(16, 14, 12, 14),
+              child: Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: headerAccent.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Column(
+                      children: [
+                        Text(
+                          DateFormat('d').format(widget.day),
+                          style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: headerAccent),
+                        ),
+                        Text(
+                          DateFormat('MMM').format(widget.day).toUpperCase(),
+                          style: TextStyle(fontSize: 10, color: headerAccent),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          _dayLabel(widget.day),
+                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                        ),
+                        const SizedBox(height: 3),
+                        Wrap(
+                          spacing: 6,
+                          children: [
+                            if (hasLoans)
+                              _Chip(
+                                label: 'Loan Rs ${dayLoanTotal.toStringAsFixed(0)}',
+                                color: Colors.green.shade600,
+                              ),
+                            if (hasBorrows)
+                              _Chip(
+                                label: 'Borrow Rs ${dayBorrowTotal.toStringAsFixed(0)}',
+                                color: Colors.red.shade600,
+                              ),
+                            _Chip(
+                              label: '${widget.transactions.length} item${widget.transactions.length == 1 ? '' : 's'}',
+                              color: Colors.grey.shade500,
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                  AnimatedRotation(
+                    turns: _expanded ? 0.5 : 0,
+                    duration: const Duration(milliseconds: 250),
+                    child: Icon(
+                      Icons.keyboard_arrow_down,
+                      color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.45),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+
+          // ── Expanded individual entries ───────────────────────────
+          AnimatedCrossFade(
+            firstChild: const SizedBox.shrink(),
+            secondChild: Column(
+              children: [
+                Divider(height: 1, color: Theme.of(context).dividerColor),
+                ...widget.transactions.map((tx) => _TxEntry(
+                      tx: tx,
+                      onTap: tx.isCleared ? null : () => widget.onRecordPayment(tx),
+                    )),
+              ],
+            ),
+            crossFadeState: _expanded ? CrossFadeState.showSecond : CrossFadeState.showFirst,
+            duration: const Duration(milliseconds: 250),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ── Small chip label ─────────────────────────────────────────────────────────
+class _Chip extends StatelessWidget {
+  final String label;
+  final Color color;
+  const _Chip({required this.label, required this.color});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Text(
+        label,
+        style: TextStyle(fontSize: 10, color: color, fontWeight: FontWeight.w600),
+      ),
+    );
+  }
+}
+
+// ── Single transaction entry row inside the expanded collection ───────────────
+class _TxEntry extends StatelessWidget {
+  final ExpenseModel tx;
+  final VoidCallback? onTap;
+  const _TxEntry({required this.tx, this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    final isLoan = tx.category == 'Loan';
+    final color = isLoan ? Colors.green.shade600 : Colors.red.shade600;
+    final isCleared = tx.isCleared;
+
+    return InkWell(
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 10, 16, 10),
+        child: Row(
+          children: [
+            Container(
+              width: 8, height: 8,
+              decoration: BoxDecoration(
+                color: isCleared ? Colors.grey.shade400 : color,
+                shape: BoxShape.circle,
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    tx.label,
+                    style: TextStyle(
+                      fontWeight: FontWeight.w600,
+                      fontSize: 13,
+                      color: isCleared
+                          ? Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.4)
+                          : Theme.of(context).colorScheme.onSurface,
+                      decoration: isCleared ? TextDecoration.lineThrough : null,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                        isCleared
+                            ? '${tx.category} • Cleared'
+                            : tx.isPartiallyPaid
+                                ? (isLoan
+                                    ? '${tx.category} • Rs ${tx.amountPaid.toStringAsFixed(0)} received • Tap to receive more'
+                                    : '${tx.category} • Rs ${tx.amountPaid.toStringAsFixed(0)} paid • Tap to pay more')
+                                : (isLoan
+                                    ? '${tx.category} • Tap to receive'
+                                    : '${tx.category} • Tap to pay'),
+                    style: TextStyle(
+                      fontSize: 11,
+                      color: isCleared ? Colors.grey.shade400 : color,
+                      fontWeight: isCleared ? FontWeight.normal : FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                Text(
+                  'Rs ${tx.amount.toStringAsFixed(0)}',
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 13,
+                    color: isCleared ? Colors.grey.shade400 : color,
+                  ),
+                ),
+                if (!isCleared && tx.isPartiallyPaid)
+                  Text(
+                    '⏳ Rs ${tx.remainingAmount.toStringAsFixed(0)} left',
+                    style: TextStyle(fontSize: 10, color: color.withValues(alpha: 0.7)),
+                  ),
+              ],
+            ),
+            const SizedBox(width: 8),
+            IconButton(
+              icon: Icon(Icons.receipt_long, color: color.withValues(alpha: 0.8), size: 20),
+              constraints: const BoxConstraints(),
+              padding: EdgeInsets.zero,
+              onPressed: () {
+                showDialog(
+                  context: context,
+                  builder: (ctx) => Material(
+                    color: Colors.transparent,
+                    child: GestureDetector(
+                      behavior: HitTestBehavior.opaque,
+                      onTap: () => Navigator.pop(ctx),
+                      child: Center(
+                        child: GestureDetector(
+                          onTap: () {}, // Do not dismiss when tapping the receipt itself
+                          child: ReceiptWidget(expense: tx),
+                        ),
+                      ),
+                    ),
+                  ),
+                );
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+//  BENEFICIARY COLLECTION CARD  (expandable grouped transactions for one person)
+// ═══════════════════════════════════════════════════════════════════════════════
+class _BeneficiaryCollectionCard extends StatefulWidget {
+  final String beneficiary;
+  final List<ExpenseModel> transactions;
+  final void Function(ExpenseModel) onRecordPayment;
+
+  const _BeneficiaryCollectionCard({
+    required this.beneficiary,
+    required this.transactions,
+    required this.onRecordPayment,
+  });
+
+  @override
+  State<_BeneficiaryCollectionCard> createState() => _BeneficiaryCollectionCardState();
+}
+
+class _BeneficiaryCollectionCardState extends State<_BeneficiaryCollectionCard> {
+  bool _expanded = false;
+
+  @override
+  Widget build(BuildContext context) {
+    double loanTotal = 0;
+    double borrowTotal = 0;
+    int pendingCount = 0;
+
+    for (final tx in widget.transactions) {
+      if (tx.category == 'Loan') loanTotal += tx.amount;
+      if (tx.category == 'Borrow') borrowTotal += tx.amount;
+      if (!tx.isCleared) pendingCount++;
+    }
+
+    final bool hasLoans = loanTotal > 0;
+    final bool hasBorrows = borrowTotal > 0;
+    final bool hasPending = pendingCount > 0;
+
+    final Color headerAccent = hasBorrows && !hasLoans
+        ? Colors.red.shade600
+        : hasLoans && !hasBorrows
+            ? Colors.green.shade600
+            : const Color(0xFF2EC4B6);
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.surface,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: hasPending
+              ? headerAccent.withValues(alpha: 0.3)
+              : Theme.of(context).dividerColor,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.04),
+            blurRadius: 8,
+            offset: const Offset(0, 3),
+          ),
+        ],
+      ),
+      child: Column(
+        children: [
+          // ── Header (always visible) ───────────────────────────
+          InkWell(
+            onTap: () => setState(() => _expanded = !_expanded),
+            borderRadius: BorderRadius.circular(16),
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(16, 14, 12, 14),
+              child: Row(
+                children: [
+                  CircleAvatar(
+                    backgroundColor: headerAccent.withValues(alpha: 0.1),
+                    child: Text(
+                      widget.beneficiary.isNotEmpty ? widget.beneficiary[0].toUpperCase() : '?',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 18,
+                        color: headerAccent,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          widget.beneficiary.isEmpty ? 'Unknown' : widget.beneficiary,
+                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                        ),
+                        const SizedBox(height: 3),
+                        Wrap(
+                          spacing: 6,
+                          children: [
+                            if (hasLoans)
+                              _Chip(
+                                label: 'Loan Rs ${loanTotal.toStringAsFixed(0)}',
+                                color: Colors.green.shade600,
+                              ),
+                            if (hasBorrows)
+                              _Chip(
+                                label: 'Borrow Rs ${borrowTotal.toStringAsFixed(0)}',
+                                color: Colors.red.shade600,
+                              ),
+                            _Chip(
+                              label: '${widget.transactions.length} item${widget.transactions.length == 1 ? '' : 's'}',
+                              color: Colors.grey.shade500,
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                  AnimatedRotation(
+                    turns: _expanded ? 0.5 : 0,
+                    duration: const Duration(milliseconds: 250),
+                    child: Icon(
+                      Icons.keyboard_arrow_down,
+                      color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.45),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+
+          // ── Expanded individual entries ───────────────────────────
+          AnimatedCrossFade(
+            firstChild: const SizedBox.shrink(),
+            secondChild: Column(
+              children: [
+                Divider(height: 1, color: Theme.of(context).dividerColor),
+                ...widget.transactions.map((tx) => _TxEntry(
+                      tx: tx,
+                      onTap: tx.isCleared ? null : () => widget.onRecordPayment(tx),
+                    )),
+              ],
+            ),
+            crossFadeState: _expanded ? CrossFadeState.showSecond : CrossFadeState.showFirst,
+            duration: const Duration(milliseconds: 250),
+          ),
+        ],
+      ),
+    );
+  }
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
 //  SWIPEABLE INFO CARDS  (Spent Today / People / Loans / Borrows)
 // ═══════════════════════════════════════════════════════════════════════════════
 class _SwipeableInfoCards extends StatefulWidget {
+
   final double selectedDaySpent;
   final double budgetPercentage;
   final List<ExpenseModel> allExpenses;
@@ -1589,14 +2143,34 @@ class _DailyLedger extends StatelessWidget {
         ),
 
         // Origin transactions (expenses / loans / borrows)
-        ...transactions.map((tx) => _TransactionCard(
-          tx: tx,
-          primaryTeal: primaryTeal,
-          getCategoryIcon: getCategoryIcon,
-          onEdit: () => onEdit(tx),
-          onRecordPayment: () => onRecordPayment(tx),
-          isCreationDay: tx.date.year == selectedDate.year && tx.date.month == selectedDate.month && tx.date.day == selectedDate.day,
-        )),
+        ...(() {
+          final List<Widget> widgets = [];
+          final Map<String, List<ExpenseModel>> groupedPeopleTxs = {};
+
+          for (final tx in transactions) {
+            if ((tx.category == 'Loan' || tx.category == 'Borrow') && tx.beneficiary?.isNotEmpty == true) {
+              groupedPeopleTxs.putIfAbsent(tx.beneficiary!, () => []).add(tx);
+            } else {
+              widgets.add(_TransactionCard(
+                tx: tx,
+                primaryTeal: primaryTeal,
+                getCategoryIcon: getCategoryIcon,
+                onEdit: () => onEdit(tx),
+                onRecordPayment: () => onRecordPayment(tx),
+                isCreationDay: tx.date.year == selectedDate.year && tx.date.month == selectedDate.month && tx.date.day == selectedDate.day,
+              ));
+            }
+          }
+
+          for (final entry in groupedPeopleTxs.entries) {
+            widgets.add(_BeneficiaryCollectionCard(
+              beneficiary: entry.key,
+              transactions: entry.value,
+              onRecordPayment: onRecordPayment,
+            ));
+          }
+          return widgets;
+        })(),
 
         // Repayment events (cash that moved today)
         ...displayRepayments.map((r) => _RepaymentCard(repayment: r)),
@@ -1858,8 +2432,12 @@ class _TransactionCard extends StatelessWidget {
                   ? (isCleared
                       ? '${tx.category} • Cleared'
                       : tx.isPartiallyPaid
-                          ? '${tx.category} • Tap to pay remaining Rs ${tx.remainingAmount.toStringAsFixed(0)}'
-                          : '${tx.category} • Tap to record payment')
+                          ? (tx.category == 'Loan'
+                              ? '${tx.category} • Tap to receive remaining Rs ${tx.remainingAmount.toStringAsFixed(0)}'
+                              : '${tx.category} • Tap to pay remaining Rs ${tx.remainingAmount.toStringAsFixed(0)}')
+                          : (tx.category == 'Loan'
+                              ? '${tx.category} • Tap to record receipt'
+                              : '${tx.category} • Tap to record payment'))
                   : tx.category,
               style: TextStyle(
                 color: isSpecial && !isCleared
